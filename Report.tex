@@ -2,6 +2,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath, amssymb, amsthm}
 \usepackage{graphicx}
+\usepackage{tabularx}
 \usepackage{booktabs}
 \usepackage{hyperref}
 \usepackage{geometry}
@@ -148,16 +149,18 @@ We evaluated our solver on the official \textbf{Wasserstein-2 Map Benchmark} (\t
 \centering
 \caption{Mix3ToMix10 Benchmark Evaluation Metrics}
 \label{tab:benchmark}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{ccccc}
 \toprule
-\textbf{Dimension ($D$)} & \textbf{Forward L2-UVP (\%)} & \textbf{Forward Cosine Sim} & \textbf{Inverse L2-UVP (\%)} & \textbf{Inverse Cosine Sim} \\
+\textbf{Dim ($D$)} & \textbf{Fwd L2-UVP (\%)} & \textbf{Fwd Cosine Sim} & \textbf{Inv L2-UVP (\%)} & \textbf{Inv Cosine Sim} \\
 \midrule
-2  & \textbf{5.9010\%}  & \textbf{0.8929} & \textbf{6.2682\%}  & \textbf{0.8872} \\
-8  & 22.0953\%          & 0.8017          & 14.4808\%          & 0.8798          \\
-16 & 38.8472\%          & 0.7679          & 23.1517\%          & 0.8693          \\
-32 & 52.8947\%          & 0.7461          & 49.7188\%          & 0.7707          \\
+2  & \textbf{5.90}  & \textbf{0.893} & \textbf{6.27}  & \textbf{0.887} \\
+8  & 22.10          & 0.802          & 14.48          & 0.880          \\
+16 & 38.85          & 0.768          & 23.15          & 0.869          \\
+32 & 52.89          & 0.746          & 49.72          & 0.771          \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 The L2-UVP is low in 2D ($\sim 5.9\%$), demonstrating high transport quality. However, it increases with dimension (reaching 52.89\% in 32D), closely matching the benchmark baseline results for standard ICNN-based solvers.
@@ -176,7 +179,7 @@ In this project, we successfully implemented, validated, and evaluated an ICNN-b
 \section{References}
 \begin{enumerate}
     \item Makkuva, A., Taghvaei, A., Oh, S., \& Lee, J. (2020). \textit{Optimal transport using input-convex neural networks}. ICML.
-    \item Amos, B., Xu, L., & Kolter, J. Z. (2017). \textit{Input convex neural networks}. ICML.
+    \item Amos, B., Xu, L., \& Kolter, J. Z. (2017). \textit{Input convex neural networks}. ICML.
     \item Korotin, A., Li, L., Genevay, A., Solomon, J. M., Filippov, A., \& Burnaev, E. (2021). \textit{Do neural optimal transport solvers work? A continuous Wasserstein-2 benchmark}. NeurIPS.
 \end{enumerate}
 
