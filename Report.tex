@@ -19,7 +19,7 @@ University Project Submission}
 \maketitle
 
 \begin{abstract}
-This report presents a rigorous implementation and empirical analysis of Input-Convex Neural Networks (ICNNs) applied to continuous Optimal Transport (OT) under quadratic cost ($W_2$), reproducing the minimax dual formulation by Makkuva et al. (2020). Using a custom PyTorch-based solver, we validate ICNNs against analytical Gaussian maps, study ablation families across model capacities, investigate five distinct failure modes, measure scalability trends, and evaluate mapping quality against the NeurIPS 2021 Korotin continuous Wasserstein-2 benchmark (\texttt{Mix3ToMix10}). Our results demonstrate that while ICNNs verify Gaussian transport with high precision (relative $W_2$ error of 0.88\% in our setup), performance degrades in higher dimensions (L2-UVP degrading to 52.89\% in 32D) due to ICNN representation constraints and minimax optimization instabilities.
+This report presents a rigorous implementation and empirical analysis of Input-Convex Neural Networks (ICNNs) applied to continuous Optimal Transport (OT) under quadratic cost ($W_2$), reproducing the minimax dual formulation by Makkuva et al. (2020). Using a custom PyTorch-based solver, I validate ICNNs against analytical Gaussian maps, study ablation families across model capacities, investigate five distinct failure modes, measure scalability trends, and evaluate mapping quality against the NeurIPS 2021 Korotin continuous Wasserstein-2 benchmark (\texttt{Mix3ToMix10}). My results demonstrate that while ICNNs verify Gaussian transport with high precision (relative $W_2$ error of 0.88\% in my setup), performance degrades in higher dimensions (L2-UVP degrading to 52.89\% in 32D) due to ICNN representation constraints and minimax optimization instabilities.
 \end{abstract}
 
 \section{Introduction}
@@ -76,7 +76,7 @@ Since $\nabla \varphi^* = (\nabla \varphi)^{-1}$, the optimal mapping from targe
 where $f$ and $g$ are input-convex networks. The optimal potential $g^*$ maximizes the inner term, resolving the conjugate requirement, while the outer potential $f^*$ minimizes the total transportation cost.
 
 \section{Methodology \& Implementation}
-We constructed a clean, modular PyTorch-based solver implementing the minimax dual formulation.
+I constructed a clean, modular PyTorch-based solver implementing the minimax dual formulation.
 
 \subsection{Architecture}
 The potential functions $f$ and $g$ are built as fully-connected ICNNs. Standard non-convex baselines are represented by a multilayer perceptron (MLP) of matching layer capacities. Hidden activations default to the convex \texttt{Softplus} function.
@@ -98,7 +98,7 @@ Optimization is carried out using the Adam optimizer. An alternating minimax sch
 All reported metrics are collected from fully converged PyTorch runs (500--2000 iterations).
 
 \subsection{Analytical Validation (Gaussian $\to$ Gaussian)}
-To verify correctness, we mapped a 2D Gaussian $\mu = \mathcal{N}(0, I_2)$ to a shifted and scaled Gaussian $\nu = \mathcal{N}([2, -1], 0.6^2 I_2)$.
+To verify correctness, I mapped a 2D Gaussian $\mu = \mathcal{N}(0, I_2)$ to a shifted and scaled Gaussian $\nu = \mathcal{N}([2, -1], 0.6^2 I_2)$.
 \begin{itemize}
     \item \textbf{Analytical Wasserstein Distance}:
     \begin{equation}
@@ -124,7 +124,7 @@ Parameter sweeps were executed on a 2D identity Gaussian setup to analyze traini
 \end{itemize}
 
 \section{Failure-Mode Analysis}
-We intentionally violated model constraints to observe degradation:
+I intentionally violated model constraints to observe degradation:
 \begin{enumerate}
     \item \textbf{Very Small Datasets ($N=50$)}: Pre-generating a tiny finite pool of 50 samples caused extreme overfitting. The dual potential loss fluctuated wildly (jumping between $1.93$ and $3.20$), as the potentials fit local sample noise rather than the underlying distribution.
     \item \textbf{Removing Convexity (Standard MLP)}: Training with standard MLP potentials (removing weight-clipping) allowed negative weights. This violated Brenier's theorem, causing non-monotone transport maps and path-crossing.
@@ -134,7 +134,7 @@ We intentionally violated model constraints to observe degradation:
 \end{enumerate}
 
 \section{Scalability Study}
-We measured CPU runtime scalability across dimensions and dataset sizes:
+I measured CPU runtime scalability across dimensions and dataset sizes:
 
 \subsection{Runtime vs. Dimension}
 Runtime grows quadratically with input dimension. Evaluating the mapping requires computing the gradient of the potential with respect to the input ($\nabla g(y)$). Backpropagating through a gradient operation to update weights requires computing second-order derivatives (Hessians/Jacobian-vector products), which scales quadratically with input size.
@@ -143,7 +143,7 @@ Runtime grows quadratically with input dimension. Evaluating the mapping require
 Runtime scales sublinearly. Parallel batched tensor operations on the CPU mask data loading overhead until memory bottlenecks are hit.
 
 \section{Korotin Benchmark Evaluation}
-We evaluated our solver on the official \textbf{Wasserstein-2 Map Benchmark} (\texttt{Mix3ToMix10} Gaussian mixtures) across dimensions 2, 8, 16, and 32 on CPU:
+I evaluated my solver on the official \textbf{Wasserstein-2 Map Benchmark} (\texttt{Mix3ToMix10} Gaussian mixtures) across dimensions 2, 8, 16, and 32 on CPU:
 
 \begin{table}[h]
 \centering
@@ -174,7 +174,7 @@ The L2-UVP is low in 2D ($\sim 5.9\%$), demonstrating high transport quality. Ho
 \end{enumerate}
 
 \section{Conclusion}
-In this project, we successfully implemented, validated, and evaluated an ICNN-based optimal transport solver in PyTorch. Our solver reproduced the analytical Gaussian transport with a relative error of 0.88\% and closely matched the Korotin benchmark baselines. However, our scaling and failure analyses highlight that ICNNs trade expressiveness and computational efficiency (due to second-order backpropagation) for their theoretical guarantees. Future work should investigate regularization techniques (such as gradient penalties) to stabilize minimax training in higher dimensions.
+In this project, I successfully implemented, validated, and evaluated an ICNN-based optimal transport solver in PyTorch. My solver reproduced the analytical Gaussian transport with a relative error of 0.88\% and closely matched the Korotin benchmark baselines. However, my scaling and failure analyses highlight that ICNNs trade expressiveness and computational efficiency (due to second-order backpropagation) for their theoretical guarantees. Future work should investigate regularization techniques (such as gradient penalties) to stabilize minimax training in higher dimensions.
 
 \section{References}
 \begin{enumerate}
