@@ -1,0 +1,13 @@
+{
+  "final_f_loss": 2.0233154296875,
+  "n_iters": 500,
+  "batch_size": 256,
+  "hidden_dims": [
+    512,
+    512,
+    512
+  ],
+  "lr": 0.001,
+  "inner_iters": 10,
+  "activation": "softplus"
+}

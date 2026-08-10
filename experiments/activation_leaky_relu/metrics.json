@@ -1,0 +1,7 @@
+{
+  "runtime_sec": 9.5715,
+  "final_f_loss": 2.007716655731201,
+  "n_iters": 500,
+  "seed": 0,
+  "model_type": "icnn"
+}

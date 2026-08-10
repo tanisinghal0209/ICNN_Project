@@ -1,0 +1,13 @@
+input_dim: 2
+n_iters: 3000
+batch_size: 256
+hidden_dims: [64, 64, 64]
+lr: 0.001
+inner_iters: 10
+activation: softplus
+optimizer: adam
+seed: 0
+device: cpu
+log_every: 500
+checkpoint_every: 1000
+exp_name: baseline

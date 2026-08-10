@@ -1,0 +1,21 @@
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+
+# Training logs and temp files
+logs/
+*.log
+
+# Training checkpoints and large binary weights (optional)
+# We ignore the intermediate checkpoints under run folders, but keep final summary files
+*/*/run/checkpoints/
+experiments/*/run/checkpoints/
+experiments/scale_*/
+experiments/failure_*/

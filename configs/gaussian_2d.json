@@ -1,0 +1,13 @@
+{
+  "input_dim": 2,
+  "n_iters": 300,
+  "batch_size": 256,
+  "hidden_dims": [64, 64, 64],
+  "lr": 0.001,
+  "inner_iters": 5,
+  "activation": "leaky_relu",
+  "device": "cpu",
+  "log_every": 50,
+  "checkpoint_every": 0,
+  "plot_n": 256
+}

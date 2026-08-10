@@ -1,0 +1,12 @@
+{
+  "input_dim": 8,
+  "n_iters": 10,
+  "batch_size": 32,
+  "hidden_dims": [
+    64,
+    64
+  ],
+  "lr": 0.001,
+  "inner_iters": 1,
+  "device": "cpu"
+}
