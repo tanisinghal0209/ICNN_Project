@@ -1,0 +1,90 @@
+[
+  {
+    "width": 64,
+    "hidden_dims": [
+      64,
+      64,
+      64
+    ],
+    "L2-UVP": 36.75631332397461,
+    "Cosine Similarity": 0.774541437625885,
+    "L2 Error": 5.844954490661621,
+    "final_f_loss": 10.518630981445312,
+    "final_g_loss": 152.08551025390625,
+    "f_gradient_norm": 17.94009376214773,
+    "g_gradient_norm": 0.3590179809076656,
+    "f_parameter_norm": 12.468813371919985,
+    "g_parameter_norm": 28.459211377558233,
+    "parameter_count_f": 11537,
+    "parameter_count_g": 11537,
+    "training_time": 96.96599507331848,
+    "iterations_per_second": 20.625787406066927,
+    "NaN/Inf": false
+  },
+  {
+    "width": 128,
+    "hidden_dims": [
+      128,
+      128,
+      128
+    ],
+    "L2-UVP": 37.638214111328125,
+    "Cosine Similarity": 0.768311619758606,
+    "L2 Error": 6.014100074768066,
+    "final_f_loss": 10.712417602539062,
+    "final_g_loss": 160.36416625976562,
+    "f_gradient_norm": 13.849351062667486,
+    "g_gradient_norm": 1.5420738168230885,
+    "f_parameter_norm": 16.002006461984735,
+    "g_parameter_norm": 47.88196463963466,
+    "parameter_count_f": 39441,
+    "parameter_count_g": 39441,
+    "training_time": 141.19466495513916,
+    "iterations_per_second": 14.164841147754744,
+    "NaN/Inf": false
+  },
+  {
+    "width": 256,
+    "hidden_dims": [
+      256,
+      256,
+      256
+    ],
+    "L2-UVP": 36.4857063293457,
+    "Cosine Similarity": 0.7768722176551819,
+    "L2 Error": 5.8395538330078125,
+    "final_f_loss": 10.909988403320312,
+    "final_g_loss": 172.2786102294922,
+    "f_gradient_norm": 10.560666722477391,
+    "g_gradient_norm": 2.819604148166237,
+    "f_parameter_norm": 20.95206963104301,
+    "g_parameter_norm": 63.21955776248708,
+    "parameter_count_f": 144401,
+    "parameter_count_g": 144401,
+    "training_time": 203.9093952178955,
+    "iterations_per_second": 9.808277827820637,
+    "NaN/Inf": false
+  },
+  {
+    "width": 512,
+    "hidden_dims": [
+      512,
+      512,
+      512
+    ],
+    "L2-UVP": 41.00761795043945,
+    "Cosine Similarity": 0.7442530393600464,
+    "L2 Error": 6.609405994415283,
+    "final_f_loss": 10.78515625,
+    "final_g_loss": 165.3538360595703,
+    "f_gradient_norm": 8.489026919922837,
+    "g_gradient_norm": 0.6167032095929634,
+    "f_parameter_norm": 30.54207703582772,
+    "g_parameter_norm": 65.84244132458511,
+    "parameter_count_f": 550929,
+    "parameter_count_g": 550929,
+    "training_time": 301.266939163208,
+    "iterations_per_second": 6.638630861903245,
+    "NaN/Inf": false
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "config_name": "LR_2.5e-4",
+  "lr": 0.00025,
+  "inner_iters": 10,
+  "L2-UVP": 39.40433883666992,
+  "Cosine Similarity": 0.7518662810325623,
+  "L2 Error": 6.296303749084473,
+  "final_f_loss": 11.115982055664062,
+  "final_g_loss": 195.6632080078125,
+  "f_gradient_norm": 14.92161740834479,
+  "g_gradient_norm": 0.2711905990663476,
+  "f_parameter_norm": 15.728078516667606,
+  "g_parameter_norm": 17.700621635381896,
+  "training_time": 144.30179405212402,
+  "iterations_per_second": 13.859841543463897,
+  "NaN/Inf": false
+}

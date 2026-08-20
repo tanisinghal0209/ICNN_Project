@@ -1,0 +1,22 @@
+{
+  "width": 256,
+  "hidden_dims": [
+    256,
+    256,
+    256
+  ],
+  "L2-UVP": 36.4857063293457,
+  "Cosine Similarity": 0.7768722176551819,
+  "L2 Error": 5.8395538330078125,
+  "final_f_loss": 10.909988403320312,
+  "final_g_loss": 172.2786102294922,
+  "f_gradient_norm": 10.560666722477391,
+  "g_gradient_norm": 2.819604148166237,
+  "f_parameter_norm": 20.95206963104301,
+  "g_parameter_norm": 63.21955776248708,
+  "parameter_count_f": 144401,
+  "parameter_count_g": 144401,
+  "training_time": 203.9093952178955,
+  "iterations_per_second": 9.808277827820637,
+  "NaN/Inf": false
+}

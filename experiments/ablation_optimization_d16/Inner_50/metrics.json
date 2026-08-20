@@ -1,0 +1,17 @@
+{
+  "config_name": "Inner_50",
+  "lr": 0.001,
+  "inner_iters": 50,
+  "L2-UVP": 36.853790283203125,
+  "Cosine Similarity": 0.7722105383872986,
+  "L2 Error": 5.894387245178223,
+  "final_f_loss": 10.467315673828125,
+  "final_g_loss": 162.13636779785156,
+  "f_gradient_norm": 6.388606721608197,
+  "g_gradient_norm": 0.8115858060006333,
+  "f_parameter_norm": 16.173363420033432,
+  "g_parameter_norm": 77.78321210340695,
+  "training_time": 748.9124829769135,
+  "iterations_per_second": 2.6705390088439125,
+  "NaN/Inf": false
+}

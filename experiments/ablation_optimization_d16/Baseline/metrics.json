@@ -1,0 +1,17 @@
+{
+  "config_name": "Baseline",
+  "lr": 0.001,
+  "inner_iters": 10,
+  "L2-UVP": 37.638214111328125,
+  "Cosine Similarity": 0.768311619758606,
+  "L2 Error": 6.014100074768066,
+  "final_f_loss": 10.712417602539062,
+  "final_g_loss": 160.36416625976562,
+  "f_gradient_norm": 13.849351062667486,
+  "g_gradient_norm": 1.5420738168230885,
+  "f_parameter_norm": 16.002006461984735,
+  "g_parameter_norm": 47.88196463963466,
+  "training_time": 138.58292293548584,
+  "iterations_per_second": 14.431792587684523,
+  "NaN/Inf": false
+}
