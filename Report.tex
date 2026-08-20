@@ -21,18 +21,18 @@ BITS Pilani, Goa Campus \\
 \maketitle
 
 \begin{abstract}
-This report presents a implementation and empirical analysis of Input-Convex Neural Networks (ICNNs) applied to continuous Optimal Transport (OT) under quadratic cost ($W_2$), reproducing the minimax dual formulation by Makkuva et al. (2020). The codebase is modularized into reusable components (\texttt{src/}) validated by a suite of 46 automated unit tests (\texttt{tests/}). I validate the solver against analytical 2D Gaussian mappings (achieving a 0.88\% relative $W_2$ error) and evaluate mapping quality on the official NeurIPS 2021 Korotin continuous Wasserstein-2 benchmark (\texttt{Mix3ToMix10}) across dimensions $D \in \{2, 4, 8, 16, 32\}$. Following research directives, I isolate three potential failure causes: (1) function-class expressivity, (2) optimization instability, and (3) computational cost. Controlled ablations at $D=16$ show that scaling model capacity by $48\times$ (from 11k to 550k parameters) yields zero improvement in transport accuracy (L2-UVP remaining flat $\sim 36.5\% - 41.0\%$), ruling out expressivity as the limiting bottleneck. Iteration-level telemetry demonstrates that \textbf{gradient norm explosion ($150\times$ increase to $32.24$) and minimax optimization instability} act as the primary failure mode in scaling ICNN-based optimal transport solvers.
+This report presents a implementation and empirical analysis of Input-Convex Neural Networks (ICNNs) applied to continuous Optimal Transport (OT) under quadratic cost ($W_2$), reproducing the minimax dual formulation by Makkuva et al. (2020). The codebase is modularized into reusable components (\texttt{src/}) validated by a suite of 46 automated unit tests (\texttt{tests/}). I validate the solver against analytical 2D Gaussian mappings (achieving a 0.88\% relative $W_2$ error) and evaluate mapping quality on the official NeurIPS 2021 Korotin continuous Wasserstein-2 benchmark (\texttt{Mix3ToMix10}) across dimensions $D \in \{2, 4, 8, 16, 32\}$. Following research directives, I isolate three potential failure causes: (1) function-class expressivity, (2) optimization instability, and (3) computational cost. Controlled ablations at $D=16$ show that scaling model capacity by $48\times$ (from 11k to 550k parameters) yields zero improvement in transport accuracy (L2-UVP remaining flat $\sim 36.5\% - 41.0\%$), indicating that capacity is not the bottleneck. Trajectory telemetry demonstrates that \textbf{transient gradient spikes (peaking at 12,999 in 32D) and dual-gap expansion ($g$-loss reaching 300.40)} strongly correlate with high-dimensional mapping accuracy degradation.
 \end{abstract}
 
 \section{Introduction}
-Optimal Transport (OT) provides a principled mathematical framework for comparing, aligning, and pushing forward probability measures. Computing the Monge map---the transport map $T: \mathbb{R}^D \to \mathbb{R}^D$ minimizing quadratic transport cost---requires enforcing cyclical monotonicity. Under Brenier's theorem, this map is uniquely characterized as the gradient of a convex potential function: $T(x) = \nabla \varphi(x)$. Input-Convex Neural Networks (ICNNs), introduced by Amos et al. (2017), solve this by constraining hidden layer weights to be non-negative and using convex, non-decreasing activation functions.
+Optimal Transport (OT) provides a mathematical framework for comparing, aligning, and pushing forward probability measures. Computing the Monge map---the transport map $T: \mathbb{R}^D \to \mathbb{R}^D$ minimizing quadratic transport cost---requires enforcing cyclical monotonicity. Under Brenier's theorem, this map is uniquely characterized as the gradient of a convex potential function: $T(x) = \nabla \varphi(x)$. Input-Convex Neural Networks (ICNNs), introduced by Amos et al. (2017), solve this by constraining hidden layer weights to be non-negative and using convex, non-decreasing activation functions.
 
 This project delivers:
 \begin{enumerate}
     \item A fully modularized PyTorch codebase (\texttt{src/}) protected by 46 automated unit tests (\texttt{tests/}).
     \item Directional consistency between source distributions ($\mu$), target distributions ($\nu$), forward maps ($T = \nabla f$), and conjugate inverse maps ($S = \nabla g$).
     \item High-dimensional evaluation on the official NeurIPS 2021 Korotin \texttt{Mix3ToMix10} benchmark ($D \in \{2, 4, 8, 16, 32\}$).
-    \item Controlled ablation experiments (Capacity vs. Optimization Stability) at $D=16$.
+    \item Quantitative optimization telemetry capturing loss and gradient trajectories for both player potentials ($f$ and $g$).
 \end{enumerate}
 
 \section{Theoretical Framework \& Formulations}
@@ -46,7 +46,7 @@ By Brenier's Theorem, if $\mu$ is continuous, there exists a unique optimal tran
 
 Using Fenchel-Rockafellar duality, the quadratic OT cost translates to the dual formulation:
 \begin{equation}
-\frac{1}{2} W_2^2(\mu, \nu) = \frac{1}{2} \mathbb{E}_{x \sim \mu}[\|x\|^2] + \frac{1}{2} \mathbb{E}_{y \sim \nu}[\|y\|^2] - \inf_{\varphi \in \text{CVX}} \left( \mathbb{E}_{x \sim \mu}[\varphi(x)] + \mathbb{E}_{y \sim \nu}[\varphi^*(y)] \right)
+\frac{1}{2} W_2^2(\mu, \nu) = \frac{1}{2} \mathbb{E}_{x \sim \mu}[\|x\|^2] + \frac{1}{2} \mathbb{E}_{y \sim \nu}[\|y\|^2] - \inf_{\varphi \in \text{text{CVX}}} \left( \mathbb{E}_{x \sim \mu}[\varphi(x)] + \mathbb{E}_{y \sim \nu}[\varphi^*(y)] \right)
 \end{equation}
 
 \subsection{Minimax Dual Formulation (Makkuva et al., 2020)}
@@ -73,18 +73,17 @@ Validation on a 2D Gaussian mapping task ($\mu = \mathcal{N}(0, I_2)$ to $\nu = 
 
 \begin{table}[h]
 \centering
-\caption{Consolidated Baseline High-Dimensional Sweep Results}
+\caption{Consolidated Baseline High-Dimensional Sweep Telemetry}
 \label{tab:high_d_results}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{ccccccccc}
 \toprule
-\textbf{Dim ($D$)} & \textbf{L2-UVP (\%)} & \textbf{Cosine Sim} & \textbf{L2 Error} & \textbf{Final $f$-Loss} & \textbf{$\|\nabla f\|$} & \textbf{Params} & \textbf{Time (s)} & \textbf{Status} \\
+\textbf{Dim ($D$)} & \textbf{L2-UVP (\%)} & \textbf{Cosine Sim} & \textbf{L2 Error} & \textbf{$f$-Loss (init $\to$ final)} & \textbf{$g$-Loss (init $\to$ final)} & \textbf{$\|\nabla f\|$ (peak)} & \textbf{$\|\nabla g\|$ (peak)} & \textbf{Time (s)} \\
 \midrule
-2  & \textbf{5.32\%}  & \textbf{0.8626} & \textbf{0.1057} & 1.7751  & 0.213  & 34,051 & 152.8 s & Converged \\
-4  & \textbf{12.64\%} & 0.8422          & 0.5055          & 3.3157  & 1.316  & 34,821 & 135.4 s & Converged \\
-8  & \textbf{19.70\%} & 0.8238          & 1.5761          & 6.1122  & 2.571  & 36,361 & 138.6 s & Converged \\
-16 & \textbf{37.76\%} & 0.7731          & 6.0410          & 10.7124 & 13.849 & 39,441 & 140.8 s & Instability \\
-32 & \textbf{50.80\%} & 0.7644          & 16.2556         & 16.5547 & 32.239 & 45,601 & 158.4 s & Severe Instability \\
+2  & \textbf{5.32\%}  & \textbf{0.8626} & \textbf{0.1057} & $6.46 \to 1.71$  & $-4.20 \to 8.82$   & 10.80  & 14.96 & 152.8 s \\
+8  & \textbf{19.70\%} & 0.8238          & 1.5761          & $7.21 \to 6.11$  & $-6.15 \to 68.84$  & 317.69 & 27.74 & 138.6 s \\
+16 & \textbf{37.76\%} & 0.7731          & 6.0410          & $6.62 \to 10.71$ & $-5.91 \to 160.36$ & 2685.76& 197.81& 140.8 s \\
+32 & \textbf{50.80\%} & 0.7644          & 16.2556         & $9.11 \to 16.55$ & $-8.03 \to 300.40$ & 12999.47& 919.33& 158.4 s \\
 \bottomrule
 \end{tabular}%
 }
@@ -101,7 +100,7 @@ To test whether capacity limits transport accuracy at $D=16$, I varied hidden wi
 \label{tab:exp_a}
 \begin{tabular}{ccccccc}
 \toprule
-\textbf{Width ($W$)} & \textbf{Architecture} & \textbf{Params ($f$)} & \textbf{L2-UVP (\%)} & \textbf{Cosine} & \textbf{$\|\nabla f\|$} & \textbf{Time (s)} \\
+\textbf{Width ($W$)} & \textbf{Architecture} & \textbf{Params ($f$)} & \textbf{L2-UVP (\%)} & \textbf{Cosine} & \textbf{$\|\nabla f\|$ (final)} & \textbf{Time (s)} \\
 \midrule
 64  & (64, 64, 64)   & 11,537  & \textbf{36.76\%} & 0.7745 & 17.94 & 97.0 s \\
 128 & (128, 128, 128) & 39,441  & \textbf{37.64\%} & 0.7683 & 13.85 & 141.2 s \\
@@ -111,31 +110,33 @@ To test whether capacity limits transport accuracy at $D=16$, I varied hidden wi
 \end{tabular}
 \end{table}
 
-\textbf{Finding}: Increasing capacity by $48\times$ yields zero accuracy improvement (L2-UVP remains $\sim 36.5\% - 41.0\%$). \textbf{Function-class capacity is not the bottleneck.}
+\textbf{Quantitative Finding}: Increasing model capacity by $48\times$ (from 11k to 550k weights) yields zero accuracy improvement. The baseline data does not suggest that capacity is the limiting factor.
 
-\subsection{Experiment B: Optimization Stability Ablation}
-To test optimization dynamics at $D=16$, I varied learning rate \texttt{lr} and inner maximization steps \texttt{inner\_iters}.
+\subsection{Experiment B: Optimization Parameter Trajectories at $D=16$}
+To test optimization dynamics at $D=16$, I evaluated variations in learning rate \texttt{lr} and inner maximization steps \texttt{inner\_iters}.
 
 \begin{table}[h]
 \centering
-\caption{Experiment B: Optimization Parameters Sweep at $D=16$}
+\caption{Experiment B: Optimization Trajectory Statistics at $D=16$}
 \label{tab:exp_b}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{ccccccc}
 \toprule
-\textbf{Config} & \textbf{Learning Rate} & \textbf{Inner Steps} & \textbf{L2-UVP (\%)} & \textbf{Cosine} & \textbf{$\|\nabla f\|$} & \textbf{Time (s)} \\
+\textbf{Config} & \textbf{Learning Rate} & \textbf{Inner Steps} & \textbf{L2-UVP (\%)} & \textbf{Cosine} & \textbf{$\|\nabla f\|$ (mean $\pm$ std)} & \textbf{$\|\nabla g\|$ (mean $\pm$ std)} \\
 \midrule
-Baseline   & $1 \times 10^{-3}$   & 10 & 37.64\% & 0.7683 & 13.85 & 138.6 s \\
-LR 5e-4    & $5 \times 10^{-4}$   & 10 & 38.15\% & 0.7631 & 15.85 & 143.9 s \\
-LR 2.5e-4  & $2.5 \times 10^{-4}$ & 10 & 39.40\% & 0.7519 & 14.92 & 144.3 s \\
-Inner 20   & $1 \times 10^{-3}$   & 20 & \textbf{36.04\%} & \textbf{0.7757} & \textbf{7.56} & 289.7 s \\
-Inner 50   & $1 \times 10^{-3}$   & 50 & 36.85\% & 0.7722 & \textbf{6.39} & 748.9 s \\
+Baseline   & $1 \times 10^{-3}$   & 10 & 37.64\% & 0.7683 & $17.91 \pm 123.86$ & $1.99 \pm 11.13$ \\
+LR 5e-4    & $5 \times 10^{-4}$   & 10 & 38.15\% & 0.7631 & $15.85 \pm 121.04$ & $2.14 \pm 12.30$ \\
+LR 2.5e-4  & $2.5 \times 10^{-4}$ & 10 & 39.40\% & 0.7519 & $14.92 \pm 118.52$ & $2.31 \pm 13.05$ \\
+Inner 20   & $1 \times 10^{-3}$   & 20 & \textbf{36.04\%} & \textbf{0.7757} & $70.31 \pm 893.10$ & $4.40 \pm 40.10$ \\
+Inner 50   & $1 \times 10^{-3}$   & 50 & 36.85\% & 0.7722 & $1282.71 \pm 19848.02$ & $30.46 \pm 372.50$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
-\textbf{Finding}: Increasing inner steps from 10 to 50 halves gradient norms ($13.85 \to 6.39$), but basic hyperparameter tuning of standard dual loss cannot restore accuracy to the 2D regime ($\sim 36.8\%$).
+\textbf{Quantitative Finding}: Increasing inner steps from 10 to 50 provides $g$ with more optimization steps per outer $f$ step. While this reduces the final step gradient norm at iteration 1999, intermediate iterations experience massive transient gradient variance (std of $\|\nabla f\|$ reaching $\pm 19,848.02$), and transport accuracy remains constrained at $\sim 36.8\%$ L2-UVP.
 
 \section{Conclusion}
-The modular PyTorch solver verifies 2D transport with high precision (0.88\% error). Controlled ablations at $D=16$ isolate minimax optimization instability—manifested through gradient norm explosion ($150\times$) and dual-gap expansion—as the primary failure mode in scaling ICNN-based optimal transport solvers.
+The modular PyTorch solver verifies 2D transport with high precision (0.88\% error). Quantitative telemetry demonstrates that high-dimensional degradation strongly correlates with gradient norm explosion and dual-gap expansion during minimax optimization.
 
 \end{document}
