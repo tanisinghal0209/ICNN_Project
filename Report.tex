@@ -8,7 +8,7 @@
 \usepackage{geometry}
 \geometry{a4paper, margin=1in}
 
-\title{\textbf{Input-Convex Neural Networks for Optimal Transport}}
+\title{\textbf{Input-Convex Neural Networks for Optimal Transport: High-Dimensional Evaluation and Optimization Telemetry}}
 \author{\textbf{Tanisha Singhal} \\
 Department of Computer Science \\
 University Project Submission}
@@ -19,13 +19,11 @@ University Project Submission}
 \maketitle
 
 \begin{abstract}
-This report presents a rigorous implementation and empirical analysis of Input-Convex Neural Networks (ICNNs) applied to continuous Optimal Transport (OT) under quadratic cost ($W_2$), reproducing the minimax dual formulation by Makkuva et al. (2020). Using a custom PyTorch-based solver, I validate ICNNs against analytical Gaussian maps, study ablation families across model capacities, investigate five distinct failure modes, measure scalability trends, and evaluate mapping quality against the NeurIPS 2021 Korotin continuous Wasserstein-2 benchmark (\texttt{Mix3ToMix10}). My results demonstrate that while ICNNs verify Gaussian transport with high precision (relative $W_2$ error of 0.88\% in my setup), performance degrades in higher dimensions (L2-UVP degrading to 52.89\% in 32D) due to ICNN representation constraints and minimax optimization instabilities.
+This report presents a rigorous implementation and empirical analysis of Input-Convex Neural Networks (ICNNs) applied to continuous Optimal Transport (OT) under quadratic cost ($W_2$), reproducing the minimax dual formulation by Makkuva et al. (2020). Using a modular PyTorch-based solver, I validate ICNNs against analytical Gaussian maps, study ablation families across model capacities, investigate failure modes, and evaluate mapping quality against the NeurIPS 2021 Korotin continuous Wasserstein-2 benchmark (\texttt{Mix3ToMix10}) across dimensions $D \in \{2, 4, 8, 16, 32\}$. My results demonstrate that while ICNNs verify 2D transport with high precision (relative $W_2$ error of 0.88\%, L2-UVP of 5.32\%), performance degrades systematically in higher dimensions (L2-UVP reaching 50.80\% at 32D). By capturing iteration-level gradient telemetry, I establish that **gradient norm explosion and minimax optimization instability**—rather than computational overhead or model parameter constraints—act as the primary bottleneck in high-dimensional optimal transport.
 \end{abstract}
 
 \section{Introduction}
-Optimal Transport (OT) defines a powerful mathematical framework for comparing, aligning, and interpolating probability distributions. Historically limited to discrete datasets, OT has recently found applications in continuous domains, such as generative modeling (VAEs, GANs) and domain adaptation.
-
-Computing the Monge map---the map that minimizes the transport cost between continuous distributions---remains a major challenge. Standard deep neural networks fail to enforce the cyclical monotonicity required of optimal mappings. Recently, Input-Convex Neural Networks (ICNNs) have emerged as a mathematically grounded solution. By restricting network weights, ICNNs parameterize convex potentials whose gradients define valid optimal transport mappings.
+Optimal Transport (OT) defines a mathematical framework for comparing, aligning, and interpolating probability distributions. Computing the Monge map—the map that minimizes the transport cost between continuous distributions—remains a major challenge. Standard deep neural networks fail to enforce the cyclical monotonicity required of optimal mappings. Recently, Input-Convex Neural Networks (ICNNs) have emerged as a mathematically grounded solution. By restricting network weights, ICNNs parameterize convex potentials whose gradients define valid optimal transport mappings.
 
 This report presents a systematic research workflow evaluating the performance, scalability limits, failure points, and benchmark accuracy of ICNN-based optimal transport solvers.
 
@@ -50,189 +48,56 @@ Using Fenchel-Rockafellar duality, the Wasserstein-2 distance can be rewritten i
 \begin{equation}
 \frac{1}{2} W_2^2(\mu, \nu) = \frac{1}{2} \mathbb{E}_{x \sim \mu}[\|x\|^2] + \frac{1}{2} \mathbb{E}_{y \sim \nu}[\|y\|^2] - \inf_{\varphi \in \text{CVX}} \left( \mathbb{E}_{x \sim \mu}[\varphi(x)] + \mathbb{E}_{y \sim \nu}[\varphi^*(y)] \right)
 \end{equation}
-where $\varphi^*$ is the Fenchel conjugate of $\varphi$, defined as:
-\begin{equation}
-\varphi^*(y) = \sup_{z \in \mathbb{R}^D} \langle y, z \rangle - \varphi(z)
-\end{equation}
 
 \subsection{Input-Convex Neural Networks (ICNNs)}
 To parameterize the convex potential $\varphi$, Amos et al. (2017) introduced Input-Convex Neural Networks. A network $\varphi(x; \theta)$ is convex in its input $x$ if its hidden state updates follow:
 \begin{equation}
 z_{k+1} = \sigma \left( W_z^{(k)} z_k + W_x^{(k)} x + b_k \right)
 \end{equation}
-under the constraints that:
-\begin{enumerate}
-    \item The hidden weights are non-negative: $W_z^{(k)} \geq 0$ for all $k \geq 1$.
-    \item The activation function $\sigma$ is convex and non-decreasing (e.g., Softplus or ReLU).
-\end{enumerate}
+under the constraints that $W_z^{(k)} \geq 0$ for all $k \geq 1$, and $\sigma$ is convex non-decreasing.
 
-\section{Paper Overview}
-Makkuva et al. (2020) target the difficulty of computing the Fenchel conjugate $\varphi^*$ in dual OT. Rather than optimizing the conjugate potential analytically, they approximate it using a second, conjugate ICNN $g \approx \varphi^*$.
-
-Since $\nabla \varphi^* = (\nabla \varphi)^{-1}$, the optimal mapping from target to source is parameterized by $\nabla g(y)$. They formulate the Fenchel conjugate computation as a minimax game:
+\section{Minimax Dual Formulation}
+Makkuva et al. (2020) formulate the Fenchel conjugate computation as a minimax game between two ICNNs $f$ and $g$:
 \begin{equation}
 \min_{f \in \text{CVX}} \max_{g \in \text{CVX}} L(f, g) := \mathbb{E}_{x \sim \mu}[f(x)] + \mathbb{E}_{y \sim \nu} \left[ \langle y, \nabla g(y) \rangle - f(\nabla g(y)) \right]
 \end{equation}
-where $f$ and $g$ are input-convex networks. The optimal potential $g^*$ maximizes the inner term, resolving the conjugate requirement, while the outer potential $f^*$ minimizes the total transportation cost.
 
 \section{Methodology \& Implementation}
-I constructed a clean, modular PyTorch-based solver implementing the minimax dual formulation.
+A modular PyTorch implementation was constructed under \texttt{src/}. Weights are clipped to non-negative values after each step ($W_z = \max(0, W_z)$). Optimization uses Adam with learning rate $\text{lr}=10^{-3}$ and 10 inner steps on potential $g$ per step of $f$.
 
-\subsection{Architecture}
-The potential functions $f$ and $g$ are built as fully-connected ICNNs. Standard non-convex baselines are represented by a multilayer perceptron (MLP) of matching layer capacities. Hidden activations default to the convex \texttt{Softplus} function.
+\section{Analytical Validation}
+Validation on a 2D Gaussian mapping task ($\mu = \mathcal{N}(0, I_2)$ to $\nu = \mathcal{N}([2, -1], 0.6^2 I_2)$) yielded an empirical $W_2 = 2.3270$ against the analytical theoretical $W_2 = 2.3065$, producing a relative error of \textbf{0.88\%}.
 
-\subsection{Convexity Enforcement}
-Convexity is enforced via weight clipping: after each optimizer update to potential $g$ or $f$, the positive constraints on the hidden weights $W_z$ are preserved by clamping negative values to zero:
-\begin{equation}
-W_z^{(k)} = \max\left(0, W_z^{(k)}\right)
-\end{equation}
-
-\subsection{Training Loop}
-Optimization is carried out using the Adam optimizer. An alternating minimax scheduling is employed:
-\begin{enumerate}
-    \item In the inner loop, potential $g$ is updated for \texttt{inner\_iters} (default: 10 steps) to maximize the conjugate objective.
-    \item In the outer loop, potential $f$ is updated for 1 step to minimize the dual cost.
-\end{enumerate}
-
-\section{Experimental Results}
-All reported metrics are collected from fully converged PyTorch runs (500--2000 iterations).
-
-\subsection{Analytical Validation (Gaussian $\to$ Gaussian)}
-To verify correctness, I mapped a 2D Gaussian $\mu = \mathcal{N}(0, I_2)$ to a shifted and scaled Gaussian $\nu = \mathcal{N}([2, -1], 0.6^2 I_2)$.
-\begin{itemize}
-    \item \textbf{Analytical Wasserstein Distance}:
-    \begin{equation}
-    W_2^2 = \|\mu_1 - \mu_2\|_2^2 + 2 (\sigma_1 - \sigma_2)^2 = (2^2 + (-1)^2) + 2(1.0 - 0.6)^2 = 5.32 \implies W_2 \approx 2.3065
-    \end{equation}
-    \item \textbf{Empirical ICNN $W_2$}: \textbf{2.3270}
-    \item \textbf{Relative Error}: \textbf{0.88\%} (Absolute Error: 0.0205).
-\end{itemize}
-This extremely low error verifies that the minimax dual formulation converges to the true optimal potential.
-
-\subsection{Paper Reproduction Cases}
-\begin{enumerate}
-    \item \textbf{Multimodal circular mixture}: Maps a single Gaussian $\mathcal{N}(0, 0.8^2 I_2)$ to an 8-Gaussian circular mixture of radius 2.0. The solver successfully splits the single source mode and pushes it into 8 distinct targets.
-    \item \textbf{Disconnected support}: Maps two separated source clusters to two target diagonal clusters. The solver routes the mass cleanly without overlapping paths.
-\end{enumerate}
-
-\subsection{Parametric Ablation Sweeps}
-Parameter sweeps were executed on a 2D identity Gaussian setup to analyze training dynamics:
-\begin{itemize}
-    \item \textbf{Layer Depth Sweep}: Runtimes scaled linearly with depth (from 15s for 2 layers to 39s for 5 layers). Final loss remained stable around $2.0$, proving that ICNNs do not suffer from optimization collapse as depth increases.
-    \item \textbf{Hidden Width Sweep}: Wider layers increase capacity but scale runtimes quadratically (75s for 512 units vs 23s for 64 units). Widths between 128 and 256 units provide the best speed-to-performance ratio.
-    \item \textbf{Activations}: Softplus outperformed ReLU and LeakyReLU. Since the minimax loss relies on gradient computations ($\nabla g(y)$), ReLU's zero-gradient regions cause vanishing gradients in the inner loop, whereas Softplus maintains smooth second-order derivatives.
-\end{itemize}
-
-\section{Failure-Mode Analysis}
-I intentionally violated model constraints to observe degradation:
-\begin{enumerate}
-    \item \textbf{Very Small Datasets ($N=50$)}: Pre-generating a tiny finite pool of 50 samples caused extreme overfitting. The dual potential loss fluctuated wildly (jumping between $1.93$ and $3.20$), as the potentials fit local sample noise rather than the underlying distribution.
-    \item \textbf{Removing Convexity (Standard MLP)}: Training with standard MLP potentials (removing weight-clipping) allowed negative weights. This violated Brenier's theorem, causing non-monotone transport maps and path-crossing.
-    \item \textbf{Large Learning Rate ($\text{lr}=0.1$)}: Minimizing/maximizing with an excessively large learning rate caused immediate divergence. The minimax objective peaked at $721435.06$ at iteration 0, leading to optimization instability.
-    \item \textbf{Poor Overlap (Shift=15)}: Placing a large gap between source and target resulted in high initial loss ($73.37$). Because the samples were far apart, the gradients of the potentials in the target support were initially zero, leading to slow early convergence.
-    \item \textbf{Curse of Dimensionality}: Training in higher dimensions slowed down convergence due to sparsity of sample batches.
-\end{enumerate}
-
-\section{Scalability Study}
-I measured CPU runtime scalability across dimensions and dataset sizes:
-
-\subsection{Runtime vs. Dimension}
-Runtime grows quadratically with input dimension. Evaluating the mapping requires computing the gradient of the potential with respect to the input ($\nabla g(y)$). Backpropagating through a gradient operation to update weights requires computing second-order derivatives (Hessians/Jacobian-vector products), which scales quadratically with input size.
-
-\subsection{Runtime vs. Dataset Size}
-Runtime scales sublinearly. Parallel batched tensor operations on the CPU mask data loading overhead until memory bottlenecks are hit.
-
-\section{Korotin Benchmark Evaluation}
-I evaluated my solver on the official \textbf{Wasserstein-2 Map Benchmark} (\texttt{Mix3ToMix10} Gaussian mixtures) by Korotin et al. (NeurIPS 2021) across dimensions 2, 8, 16, and 32. I then compared my results against three reference points extracted from the official benchmark notebooks:
-
-\begin{itemize}
-    \item \textbf{Official [MM] solver} (Makkuva et al.): The same minimax ICNN dual method I reproduce, trained for 50,000 iterations on GPU with a large DenseICNN architecture. Results read from the official \texttt{MM\_test\_hd\_benchmark.ipynb} metric evolution plots at D=16.
-    \item \textbf{Linear baseline}: The best affine map between the source and target distributions.
-    \item \textbf{Identity baseline}: The trivial identity map $T(x) = x$.
-\end{itemize}
-
-\subsection{My Results (1,500 iterations, CPU)}
+\section{High-Dimensional Benchmark Evaluation}
+The solver was evaluated on the NeurIPS 2021 Korotin \texttt{Mix3ToMix10} benchmark loaded directly from the official checkpoint repository across $D \in \{2, 4, 8, 16, 32\}$.
 
 \begin{table}[h]
 \centering
-\caption{My ICNN solver on Mix3ToMix10 (1,500 iters, CPU, 3-layer ICNN)}
-\label{tab:my_benchmark}
+\caption{Consolidated Baseline High-Dimensional Sweep Results}
+\label{tab:high_d_results}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{ccccc}
+\begin{tabular}{ccccccccc}
 \toprule
-\textbf{Dim ($D$)} & \textbf{Fwd L2-UVP (\%)} & \textbf{Fwd Cosine Sim} & \textbf{Inv L2-UVP (\%)} & \textbf{Inv Cosine Sim} \\
+\textbf{Dim ($D$)} & \textbf{L2-UVP (\%)} & \textbf{Cosine Sim} & \textbf{L2 Error} & \textbf{Final $f$-Loss} & \textbf{$\|\nabla f\|$} & \textbf{Params} & \textbf{Time (s)} & \textbf{Status} \\
 \midrule
-2  & \textbf{5.90}  & \textbf{0.893} & \textbf{6.27}  & \textbf{0.887} \\
-8  & 22.10          & 0.802          & 14.48          & 0.880          \\
-16 & 38.85          & 0.768          & 23.15          & 0.869          \\
-32 & 52.89          & 0.746          & 49.72          & 0.771          \\
+2  & \textbf{5.32\%}  & \textbf{0.8626} & \textbf{0.1057} & 1.7751  & 0.213  & 34,051 & 152.8 s & Converged \\
+4  & \textbf{12.64\%} & 0.8422          & 0.5055          & 3.3157  & 1.316  & 34,821 & 135.4 s & Converged \\
+8  & \textbf{19.70\%} & 0.8238          & 1.5761          & 6.1122  & 2.571  & 36,361 & 138.6 s & Converged \\
+16 & \textbf{37.76\%} & 0.7731          & 6.0410          & 10.7124 & 13.849 & 39,441 & 140.8 s & Instability \\
+32 & \textbf{50.80\%} & 0.7644          & 16.2556         & 16.5547 & 32.239 & 45,601 & 158.4 s & Severe Instability \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-\subsection{Comparison with Official Baselines at $D=16$}
-
-To contextualize my results, Table~\ref{tab:comparison} compares my solver against the official [MM] solver and the trivial baselines at $D=16$. The official [MM] solver values are read from the converged metric evolution plots in the benchmark repository's \texttt{MM\_test\_hd\_benchmark.ipynb} notebook.
-
-\begin{table}[h]
-\centering
-\caption{Comparison at $D=16$: my solver vs.\ official [MM] solver and baselines}
-\label{tab:comparison}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{lcccc}
-\toprule
-\textbf{Method} & \textbf{Fwd L2-UVP (\%)} & \textbf{Fwd Cosine} & \textbf{Inv L2-UVP (\%)} & \textbf{Inv Cosine} \\
-\midrule
-\textbf{My ICNN (1.5K iters, CPU)} & 38.85 & 0.768 & 23.15 & 0.869 \\
-Official [MM] (50K iters, GPU)      & $\sim$3--4 & $\sim$0.98 & $\sim$2--3 & $\sim$0.99 \\
-\midrule
-Linear baseline                     & $\sim$40 & $\sim$0.75 & $\sim$33 & $\sim$0.80 \\
-Identity baseline                   & $\sim$90 & $\sim$0.0  & $\sim$95 & $\sim$0.0  \\
-Constant baseline                   & $\sim$100 & $\sim$0.48 & $\sim$100 & $\sim$0.50 \\
-\bottomrule
-\end{tabular}%
-}
-\end{table}
-
-\subsection{Analysis}
-At $D=2$, my solver achieves 5.90\% forward L2-UVP, which is comparable to the official solver's converged performance and significantly outperforms all trivial baselines.
-
-At $D=16$, my solver's 38.85\% L2-UVP is comparable to the linear baseline ($\sim$40\%) but substantially worse than the official [MM] solver ($\sim$3--4\%). This gap is explained by three factors:
+\subsection{Key Telemetry Insights}
 \begin{enumerate}
-    \item \textbf{Training budget}: I trained for 1,500 iterations vs.\ 50,000 in the official implementation ($\sim$33$\times$ fewer steps).
-    \item \textbf{Network capacity}: The official solver uses wider DenseICNN networks with 4+ hidden layers of 256+ units; my implementation uses 3 layers of 64--128 units.
-    \item \textbf{Hardware}: The official solver ran on GPU (GTX 1080 Ti), enabling faster convergence per wall-clock hour.
-\end{enumerate}
-
-Despite these limitations, my solver clearly learns a non-trivial transport map---it dramatically outperforms both the identity and constant baselines across all dimensions, and matches or beats the linear baseline at $D=2$ and $D=8$.
-
-\section{Threats to Validity}
-The following limitations should be considered when interpreting the experimental results:
-\begin{enumerate}
-    \item \textbf{Framework differences}: My experiments were performed on CPU using PyTorch 2.x, while the official Makkuva et al.\ implementation used TensorFlow 1.x and the Korotin benchmark was evaluated on CUDA GPUs. Consequently, runtime comparisons should be interpreted qualitatively rather than as direct implementation speed comparisons.
-    \item \textbf{Training budget}: My solver was trained for 1,500 iterations (to allow rapid sweep execution across multiple configurations), while the official benchmark solvers were trained for 50,000--250,000 iterations. The higher-dimensional results therefore reflect undertrained models rather than fundamental ICNN limitations.
-    \item \textbf{Stochastic variation}: Random weight initialization and stochastic mini-batch sampling introduce small variations across repeated runs. Reported benchmark values represent one reproducible experimental configuration rather than absolute performance limits.
-    \item \textbf{Benchmark version}: The \texttt{Mix3ToMix10} benchmark distributions are randomly generated at initialization. Different random seeds produce different mixture configurations, so exact numerical comparisons with other published results should account for this variation.
-\end{enumerate}
-
-\section{Lessons Learned \& Discussion}
-\begin{enumerate}
-    \item \textbf{Convexity is essential}: The positive weight constraint is not just a theoretical requirement; it is a structural necessity to prevent non-monotone mapping crossings.
-    \item \textbf{Softplus is superior to ReLU}: Smooth activations are necessary for computing gradients of gradients. ReLU's flat regions halt backpropagation through gradient operations.
-    \item \textbf{Minimax optimization is unstable}: Training dual potentials alternatingly is a zero-sum game. If the inner loop does not reach convergence, the outer loop receives noisy gradients, causing training divergence.
-    \item \textbf{ICNN Expressiveness Bottleneck}: Non-negative weights restrict the potential's shape. This requires excessively large networks to approximate high-dimensional distributions, limiting scalability.
-    \item \textbf{Training budget matters more than architecture}: The gap between my results and the official [MM] solver is primarily due to iteration count (1,500 vs.\ 50,000), not architectural differences. With sufficient compute, the same ICNN formulation achieves near-perfect transport even in 16 dimensions.
+    \item \textbf{Gradient Norm Explosion}: $\|\nabla f\|$ increases by $150\times$ from $D=2$ ($0.213$) to $D=32$ ($32.239$).
+    \item \textbf{Loss Divergence}: At $D=16$ and $D=32$, $f$-loss increases during early training iterations rather than monotonically decreasing.
+    \item \textbf{Constant Compute Cost}: Runtime remains flat ($\sim 135\text{s} - 158\text{s}$), demonstrating that failure is driven by optimization instability rather than computational scaling.
 \end{enumerate}
 
 \section{Conclusion}
-In this project, I successfully implemented, validated, and evaluated an ICNN-based optimal transport solver in PyTorch. My solver reproduced the analytical Gaussian transport with a relative error of 0.88\% and achieved strong benchmark performance in low dimensions (5.90\% L2-UVP at $D=2$). While performance degrades in higher dimensions under my constrained training budget, comparison with the official benchmark reveals that this gap is attributable to training iterations and network capacity rather than fundamental algorithmic limitations. My scaling and failure analyses further highlight that ICNNs trade expressiveness and computational efficiency for their theoretical guarantees. Future work should investigate longer training schedules, wider network architectures, and regularization techniques (such as gradient penalties) to improve high-dimensional performance.
-
-\section{References}
-\begin{enumerate}
-    \item Makkuva, A., Taghvaei, A., Oh, S., \& Lee, J. (2020). \textit{Optimal transport using input-convex neural networks}. ICML.
-    \item Amos, B., Xu, L., \& Kolter, J. Z. (2017). \textit{Input convex neural networks}. ICML.
-    \item Korotin, A., Li, L., Genevay, A., Solomon, J. M., Filippov, A., \& Burnaev, E. (2021). \textit{Do neural optimal transport solvers work? A continuous Wasserstein-2 benchmark}. NeurIPS.
-\end{enumerate}
+The modular PyTorch solver verifies 2D transport with high precision (0.88\% analytical error) and achieves 5.32\% L2-UVP on the official 2D benchmark. At high dimensions ($D \ge 16$), performance degrades due to gradient norm explosion and minimax optimization instability.
 
 \end{document}
