@@ -94,9 +94,9 @@ def temporary_working_directory(path):
 _PKG_NAME = "wasserstein_benchmark"
 
 
-def _load_benchmark_modules(benchmark_path):
+def load_wasserstein_benchmark_modules(benchmark_path):
     """
-    Dynamically load Wasserstein2Benchmark source modules under a private
+    Load Wasserstein2Benchmark source modules under a private
     namespace to avoid collision with our own project's `src/` package.
 
     Returns: (mbm, distributions, potentials, metrics_module)
@@ -185,7 +185,7 @@ def load_mix3to10_benchmark(dim, benchmark_path=None, device='cpu'):
         module_info: Dict with benchmark module source paths for verification
     """
     bench_root = get_benchmark_path(benchmark_path)
-    mbm, distributions, potentials, _ = _load_benchmark_modules(bench_root)
+    mbm, distributions, potentials, _ = load_wasserstein_benchmark_modules(bench_root)
     _apply_cpu_patches(distributions, potentials)
 
     # Verify that we are loading from the official repository (not recreating locally)
