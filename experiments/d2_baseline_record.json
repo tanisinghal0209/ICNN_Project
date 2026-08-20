@@ -1,0 +1,21 @@
+{
+  "dimension": 2,
+  "seed": 0,
+  "n_iters": 2000,
+  "batch_size": 256,
+  "hidden_dims": [
+    128,
+    128,
+    128
+  ],
+  "learning_rate": 0.001,
+  "inner_iters": 10,
+  "L2-UVP": 5.3153300285339355,
+  "Cosine Similarity": 0.862567126750946,
+  "L2 Error": 0.10568311810493469,
+  "training_time": 152.83333897590637,
+  "benchmark_repository_path": "/Users/tanishasinghal/Downloads/Wasserstein2Benchmark",
+  "benchmark_module_source": "/Users/tanishasinghal/Downloads/Wasserstein2Benchmark/src/map_benchmark.py",
+  "python_version": "3.13.1",
+  "pytorch_version": "2.11.0"
+}
