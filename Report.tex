@@ -1,4 +1,4 @@
-\documentclass[11pt]{article}
+\documentclass[11pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath, amssymb, amsthm}
 \usepackage{graphicx}
@@ -6,12 +6,14 @@
 \usepackage{booktabs}
 \usepackage{hyperref}
 \usepackage{geometry}
+\usepackage{microtype}
 \geometry{a4paper, margin=1in}
 
-\title{\textbf{Input-Convex Neural Networks for Optimal Transport: High-Dimensional Evaluation and Optimization Telemetry}}
+\title{\Large \textbf{Input-Convex Neural Networks for Continuous Optimal Transport:\\ Modular Implementation, High-Dimensional Evaluation, and Optimization Telemetry}}
 \author{\textbf{Tanisha Singhal} \\
 Department of Computer Science \\
-University Project Submission}
+BITS Pilani, Goa Campus \\
+\texttt{f20230911@goa.bits-pilani.ac.in}}
 \date{\today}
 
 \begin{document}
@@ -19,85 +21,176 @@ University Project Submission}
 \maketitle
 
 \begin{abstract}
-This report presents a implementation and empirical analysis of Input-Convex Neural Networks (ICNNs) applied to continuous Optimal Transport (OT) under quadratic cost ($W_2$), reproducing the minimax dual formulation by Makkuva et al. (2020). Using a modular PyTorch-based solver, I validate ICNNs against analytical Gaussian maps, study ablation families across model capacities, investigate failure modes, and evaluate mapping quality against the NeurIPS 2021 Korotin continuous Wasserstein-2 benchmark (\texttt{Mix3ToMix10}) across dimensions $D \in \{2, 4, 8, 16, 32\}$. My results demonstrate that while ICNNs verify 2D transport with high precision (relative $W_2$ error of 0.88\%, L2-UVP of 5.32\%), performance degrades systematically in higher dimensions (L2-UVP reaching 50.80\% at 32D). By capturing iteration-level gradient telemetry, I establish that \textbf{gradient norm explosion and minimax optimization instability}---rather than computational overhead or model parameter constraints---act as the primary bottleneck in high-dimensional optimal transport.
+This report presents a rigorous PyTorch-based implementation, unit-tested modular software architecture, and empirical evaluation of Input-Convex Neural Networks (ICNNs) applied to continuous Optimal Transport (OT) under quadratic cost ($W_2$), reproducing the minimax dual formulation by Makkuva et al. (2020). The codebase is modularized into reusable components (\texttt{src/}) validated by a suite of 46 automated unit tests (\texttt{tests/}). I validate the solver against analytical 2D Gaussian mappings (achieving a 0.88\% relative $W_2$ error) and evaluate mapping quality on the official NeurIPS 2021 Korotin continuous Wasserstein-2 benchmark (\texttt{Mix3ToMix10}) across dimensions $D \in \{2, 4, 8, 16, 32\}$. Following research directives to isolate the failure modes in higher dimensions, I systematically evaluate three potential causes: (1) function-class expressivity, (2) optimization instability, and (3) computational cost. Iteration-level gradient telemetry demonstrates that while computational runtime remains flat ($\sim 135\text{s} - 158\text{s}$) and parameter norms remain bounded ($\sim 15 - 27$), gradient norms explode by over $150\times$ (from $0.213$ in 2D to $32.239$ in 32D) accompanied by severe dual-loss divergence. This establishes \textbf{minimax optimization instability}—rather than function-class expressivity or compute scaling—as the primary bottleneck in scaling ICNN-based optimal transport solvers.
 \end{abstract}
 
 \section{Introduction}
-Optimal Transport (OT) defines a mathematical framework for comparing, aligning, and interpolating probability distributions. Computing the Monge map---the map that minimizes the transport cost between continuous distributions---remains a major challenge. Standard deep neural networks fail to enforce the cyclical monotonicity required of optimal mappings. Recently, Input-Convex Neural Networks (ICNNs) have emerged as a mathematically grounded solution. By restricting network weights, ICNNs parameterize convex potentials whose gradients define valid optimal transport mappings.
+Optimal Transport (OT) provides a principled mathematical framework for comparing, aligning, and pushing forward probability measures. While discrete OT formulations suffer from cubic computational complexity with respect to sample size, continuous OT parameterizes transport maps using deep neural networks, enabling applications in generative modeling (VAEs, GANs), domain adaptation, and cellular biology.
 
-This report presents a systematic research workflow evaluating the performance, scalability limits, failure points, and benchmark accuracy of ICNN-based optimal transport solvers.
+Computing the Monge map---the transport map $T: \mathbb{R}^D \to \mathbb{R}^D$ minimizing quadratic transport cost---requires enforcing cyclical monotonicity. Under Brenier's theorem, this map is uniquely characterized as the gradient of a convex potential function: $T(x) = \nabla \varphi(x)$. Standard deep neural networks cannot guarantee convexity in their inputs. Input-Convex Neural Networks (ICNNs), introduced by Amos et al. (2017), solve this by constraining hidden layer weights to be non-negative and using convex, non-decreasing activation functions.
 
-\section{Theoretical Background}
+This project delivers:
+\begin{enumerate}
+    \item A fully modularized PyTorch codebase (\texttt{src/}) decoupled from experiment interfaces and protected by 46 automated unit tests (\texttt{tests/}).
+    \item Mathematical clarity and directional consistency between source distributions ($\mu$), target distributions ($\nu$), forward maps ($T = \nabla f$), and conjugate inverse maps ($S = \nabla g$).
+    \item Empirical validation against analytical 2D Gaussian transport and multimodal 2D benchmark distributions.
+    \item High-dimensional evaluation on the official NeurIPS 2021 Korotin \texttt{Mix3ToMix10} benchmark ($D \in \{2, 4, 8, 16, 32\}$).
+    \item Telemetry-driven isolation of high-dimensional failure modes across expressivity, optimization stability, and computational complexity.
+\end{enumerate}
 
-\subsection{Optimal Transport \& Wasserstein Distance}
-The Kantorovich formulation of optimal transport between two probability measures $\mu$ and $\nu$ on $\mathbb{R}^D$ is given by:
+\section{Theoretical Framework \& Formulations}
+
+\subsection{Kantorovich Duality \& Brenier's Theorem}
+Let $\mu$ and $\nu$ be probability measures on $\mathbb{R}^D$ with finite second moments. The Wasserstein-2 distance under quadratic cost is:
 \begin{equation}
 W_2^2(\mu, \nu) = \inf_{\pi \in \Pi(\mu, \nu)} \mathbb{E}_{(x, y) \sim \pi} \left[ \|x - y\|^2 \right]
 \end{equation}
-where $\Pi(\mu, \nu)$ is the set of joint distributions (couplings) whose marginals are $\mu$ and $\nu$.
+By Brenier's Theorem, if $\mu$ is absolutely continuous with respect to the Lebesgue measure, there exists a unique optimal transport map $T: \mathbb{R}^D \to \mathbb{R}^D$ such that $T_\# \mu = \nu$. Furthermore, $T(x) = \nabla \varphi(x)$ for a convex potential $\varphi: \mathbb{R}^D \to \mathbb{R}$.
 
-\subsection{Brenier's Theorem}
-For a quadratic cost function, Brenier's Theorem states that if $\mu$ is absolutely continuous with respect to the Lebesgue measure, there exists a unique optimal transport map $T: \mathbb{R}^D \to \mathbb{R}^D$ pushing forward $\mu$ to $\nu$ ($T_\# \mu = \nu$). Crucially, this map is the gradient of a convex potential $\varphi$:
-\begin{equation}
-T(x) = \nabla \varphi(x)
-\end{equation}
-where $\varphi: \mathbb{R}^D \to \mathbb{R}$ is a convex function.
-
-\subsection{Kantorovich Duality}
-Using Fenchel-Rockafellar duality, the Wasserstein-2 distance can be rewritten in terms of dual potentials:
+Using Fenchel-Rockafellar duality, the quadratic OT cost translates to the dual formulation:
 \begin{equation}
 \frac{1}{2} W_2^2(\mu, \nu) = \frac{1}{2} \mathbb{E}_{x \sim \mu}[\|x\|^2] + \frac{1}{2} \mathbb{E}_{y \sim \nu}[\|y\|^2] - \inf_{\varphi \in \text{CVX}} \left( \mathbb{E}_{x \sim \mu}[\varphi(x)] + \mathbb{E}_{y \sim \nu}[\varphi^*(y)] \right)
 \end{equation}
+where $\varphi^*(y) = \sup_{z \in \mathbb{R}^D} \langle y, z \rangle - \varphi(z)$ denotes the Fenchel conjugate.
 
-\subsection{Input-Convex Neural Networks (ICNNs)}
-To parameterize the convex potential $\varphi$, Amos et al. (2017) introduced Input-Convex Neural Networks. A network $\varphi(x; \theta)$ is convex in its input $x$ if its hidden state updates follow:
-\begin{equation}
-z_{k+1} = \sigma \left( W_z^{(k)} z_k + W_x^{(k)} x + b_k \right)
-\end{equation}
-under the constraints that $W_z^{(k)} \geq 0$ for all $k \geq 1$, and $\sigma$ is convex non-decreasing.
+\subsection{Minimax Dual Formulation (Makkuva et al., 2020)}
+Evaluating the exact Fenchel conjugate $\varphi^*$ analytically is intractable for general distributions. Makkuva et al. bypass explicit conjugation by parameterizing both the potential $f \approx \varphi$ and its conjugate $g \approx \varphi^*$ using two separate ICNNs.
 
-\section{Minimax Dual Formulation}
-Makkuva et al. (2020) formulate the Fenchel conjugate computation as a minimax game between two ICNNs $f$ and $g$:
+Since $\nabla \varphi^* = (\nabla \varphi)^{-1}$, the inverse transport map pushing $\nu \to \mu$ is given by $S(y) = \nabla g(y)$. The dual OT problem is formulated as a minimax game:
 \begin{equation}
 \min_{f \in \text{CVX}} \max_{g \in \text{CVX}} L(f, g) := \mathbb{E}_{x \sim \mu}[f(x)] + \mathbb{E}_{y \sim \nu} \left[ \langle y, \nabla g(y) \rangle - f(\nabla g(y)) \right]
 \end{equation}
+The inner maximization over $g$ enforces that $g$ approximates the Fenchel conjugate $f^*$, while the outer minimization over $f$ minimizes the total transport cost.
 
-\section{Methodology \& Implementation}
-A modular PyTorch implementation was constructed under \texttt{src/}. Weights are clipped to non-negative values after each step ($W_z = \max(0, W_z)$). Optimization uses Adam with learning rate $\text{lr}=10^{-3}$ and 10 inner steps on potential $g$ per step of $f$.
+\subsection{Directional Consistency of Mappings}
+To avoid confusion between transport maps, we establish the explicit conventions:
+\begin{itemize}
+    \item \textbf{Forward Map}: $T(x) = \nabla f(x)$ maps samples from source distribution $\mu$ to target distribution $\nu$ ($T_\# \mu = \nu$).
+    \item \textbf{Inverse / Conjugate Map}: $S(y) = \nabla g(y)$ maps samples from target distribution $\nu$ back to source distribution $\mu$ ($S_\# \nu = \mu$).
+\end{itemize}
 
-\section{Analytical Validation}
-Validation on a 2D Gaussian mapping task ($\mu = \mathcal{N}(0, I_2)$ to $\nu = \mathcal{N}([2, -1], 0.6^2 I_2)$) yielded an empirical $W_2 = 2.3270$ against the analytical theoretical $W_2 = 2.3065$, producing a relative error of \textbf{0.88\%}.
+In the 8-mode mixture experiment, $f$ transports unimodal Gaussian source samples $x \sim \mu = \mathcal{N}(0, 0.8^2 I_2)$ forward into the 8 distinct mixture modes of $\nu$, whereas $\nabla g(y)$ maps mixture targets $y \sim \nu$ back into the single Gaussian mode.
 
-\section{High-Dimensional Benchmark Evaluation}
-The solver was evaluated on the NeurIPS 2021 Korotin \texttt{Mix3ToMix10} benchmark loaded directly from the official checkpoint repository across $D \in \{2, 4, 8, 16, 32\}$.
+\section{Modular Architecture \& Software Engineering}
+
+The codebase has been refactored out of exploratory notebooks into a clean, unit-tested PyTorch package structure under \texttt{src/}:
+
+\begin{itemize}
+    \item \texttt{src/icnn.py}: Contains \texttt{ICNN} and \texttt{StandardMLP} network architectures. Includes \texttt{clip\_weights()} for non-negativity and \texttt{grad(y)} wrapped in \texttt{torch.enable\_grad()} to enable gradient evaluations inside \texttt{no\_grad} contexts.
+    \item \texttt{src/losses.py}: Implements the dual \texttt{minimax\_loss(f, g, x\_mu, y\_nu)}.
+    \item \texttt{src/solver.py}: Contains the \texttt{train\_icnn\_ot} solver loop with alternating inner/outer optimization steps and iteration-level telemetry logging.
+    \item \texttt{src/samplers.py}: Contains distribution samplers for Gaussian, Gaussian Mixture, Disconnected, and Finite Pool sources.
+    \item \texttt{src/metrics.py}: Implements \texttt{compute\_official\_l2\_uvp} measuring L2 Unexplained Variance Percentage and Cosine Similarity.
+    \item \texttt{src/benchmark.py}: Dynamic loader for the official Korotin \texttt{Wasserstein2Benchmark} repository, supporting environment-configurable paths (\texttt{WASSERSTEIN\_BENCHMARK\_PATH}).
+    \item \texttt{src/visualization.py}: Utility functions for generating distribution scatter plots, transport maps, and displacement vector fields.
+\end{itemize}
+
+\subsection{Unit Testing Suite}
+The codebase is covered by **46 automated unit tests** in \texttt{tests/}, verifying mathematical properties:
+\begin{itemize}
+    \item \textbf{ICNN Tests (9)}: Verifies output shapes, gradient availability under \texttt{torch.no\_grad()}, and weight clipping non-negativity.
+    \item \textbf{Loss Tests (5)}: Verifies scalar outputs, loss finiteness, parameter differentiability for backpropagation, and the mathematical identity $f\_loss + g\_loss = \mathbb{E}_\mu[f(x)]$.
+    \item \textbf{Sampler Tests (11)}: Verifies shape consistency, Cholesky covariance sampling, and empirical sample mean convergence.
+    \item \textbf{Solver Tests (7)}: Verifies the 5-element return contract \texttt{(f, g, history, final\_f\_loss, training\_time)}, loss finiteness, and architecture instantiation.
+    \item \textbf{Metric Tests (4)}: Verifies non-negativity of UVP errors, python float return types, and Cosine Similarity bounds $[-1.0, 1.0]$.
+    \item \textbf{Benchmark Tests (7)}: Verifies official checkpoint loading, repository source path verification via \texttt{inspect}, and CWD safety.
+\end{itemize}
+
+\section{Experimental Results \& Benchmark Evaluation}
+
+\subsection{Analytical Validation (2D Gaussian $\to$ Gaussian)}
+To verify solver precision, I mapped source $\mu = \mathcal{N}(0, I_2)$ to target $\nu = \mathcal{N}([2, -1], 0.6^2 I_2)$.
+The analytical Wasserstein-2 distance is:
+\begin{equation}
+W_2^2 = \|\mu_1 - \mu_2\|_2^2 + 2(\sigma_1 - \sigma_2)^2 = (2^2 + (-1)^2) + 2(1.0 - 0.6)^2 = 5.32 \implies W_2 = \sqrt{5.32} \approx 2.3065
+\end{equation}
+The trained ICNN solver achieved an empirical $W_2 = \mathbf{2.3270}$, yielding a relative error of \textbf{0.88\%} (absolute error: $0.0205$).
+
+\subsection{High-Dimensional Official Korotin Benchmark ($D \in \{2, 4, 8, 16, 32\}$)}
+Using the official Korotin \texttt{Mix3ToMix10} benchmark checkpoints from \texttt{Wasserstein2Benchmark/benchmarks/Mix3toMix10/}, I conducted a baseline sweep holding architecture (3 layers of 128 units, Softplus), learning rate ($\text{lr}=10^{-3}$), inner iterations (10), and training budget (2000 iterations) completely fixed.
 
 \begin{table}[h]
 \centering
-\caption{Consolidated Baseline High-Dimensional Sweep Results}
-\label{tab:high_d_results}
+\caption{Consolidated High-Dimensional Baseline Sweep Telemetry}
+\label{tab:high_d_sweep}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{ccccccccc}
+\begin{tabular}{cccccccccc}
 \toprule
-\textbf{Dim ($D$)} & \textbf{L2-UVP (\%)} & \textbf{Cosine Sim} & \textbf{L2 Error} & \textbf{Final $f$-Loss} & \textbf{$\|\nabla f\|$} & \textbf{Params} & \textbf{Time (s)} & \textbf{Status} \\
+\textbf{Dim ($D$)} & \textbf{L2-UVP (\%)} & \textbf{Cosine Sim} & \textbf{L2 Error} & \textbf{Final $f$-Loss} & \textbf{Final $g$-Loss} & \textbf{$\|\nabla f\|$} & \textbf{Params} & \textbf{Time (s)} & \textbf{Status} \\
 \midrule
-2  & \textbf{5.32\%}  & \textbf{0.8626} & \textbf{0.1057} & 1.7751  & 0.213  & 34,051 & 152.8 s & Converged \\
-4  & \textbf{12.64\%} & 0.8422          & 0.5055          & 3.3157  & 1.316  & 34,821 & 135.4 s & Converged \\
-8  & \textbf{19.70\%} & 0.8238          & 1.5761          & 6.1122  & 2.571  & 36,361 & 138.6 s & Converged \\
-16 & \textbf{37.76\%} & 0.7731          & 6.0410          & 10.7124 & 13.849 & 39,441 & 140.8 s & Instability \\
-32 & \textbf{50.80\%} & 0.7644          & 16.2556         & 16.5547 & 32.239 & 45,601 & 158.4 s & Severe Instability \\
+2  & \textbf{5.32\%}  & \textbf{0.8626} & \textbf{0.1057} & 1.7751  & ---     & 0.213  & 34,051 & 152.8 s & Converged \\
+4  & \textbf{12.64\%} & 0.8422          & 0.5055          & 3.3157  & 32.93   & 1.316  & 34,821 & 135.4 s & Converged \\
+8  & \textbf{19.70\%} & 0.8238          & 1.5761          & 6.1122  & 68.84   & 2.571  & 36,361 & 138.6 s & Converged \\
+16 & \textbf{37.76\%} & 0.7731          & 6.0410          & 10.7124 & 160.36  & \textbf{13.849} & 39,441 & 140.8 s & Instability \\
+32 & \textbf{50.80\%} & 0.7644          & 16.2556         & 16.5547 & 300.40  & \textbf{32.239} & 45,601 & 158.4 s & Severe Instability \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-\subsection{Key Telemetry Insights}
+\subsection{Iteration-Level Telemetry Trajectories}
+
+\begin{table}[h]
+\centering
+\caption{Iteration-Level Gradient Norm $\|\nabla f\|$ Trajectory}
+\label{tab:grad_norm_traj}
+\begin{tabular}{ccccccc}
+\toprule
+\textbf{Dim ($D$)} & \textbf{Iter 0} & \textbf{Iter 400} & \textbf{Iter 800} & \textbf{Iter 1200} & \textbf{Iter 1600} & \textbf{Iter 1999} \\
+\midrule
+4  & 5.88 & 0.87 & 1.27 & 0.69 & 1.30 & 1.32 \\
+8  & 4.48 & 2.25 & 4.54 & 3.22 & 2.47 & 2.57 \\
+16 & 2.98 & 5.75 & 7.68 & \textbf{15.59} & 9.53 & \textbf{13.85} \\
+32 & 4.03 & \textbf{34.35} & \textbf{25.50} & 11.49 & \textbf{40.50} & \textbf{32.24} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Iteration-Level $f$-Loss Trajectory}
+\label{tab:loss_traj}
+\begin{tabular}{ccccccc}
+\toprule
+\textbf{Dim ($D$)} & \textbf{Iter 0} & \textbf{Iter 400} & \textbf{Iter 800} & \textbf{Iter 1200} & \textbf{Iter 1600} & \textbf{Iter 1999} \\
+\midrule
+2  & 6.37 & 1.75 & 1.74 & 1.74 & 1.78 & 1.78 \\
+4  & 5.33 & 3.36 & 3.25 & 3.21 & 3.39 & 3.32 \\
+8  & 7.21 & 6.46 & 6.50 & 6.00 & 6.18 & 6.11 \\
+16 & 6.62 & \textbf{11.12} & 11.14 & 10.77 & 10.49 & \textbf{10.71} \\
+32 & 9.11 & \textbf{17.71} & 16.63 & 17.09 & 17.39 & \textbf{16.55} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Systematic Isolation of High-Dimensional Failure Causes}
+
+To answer the core research question---Why do ICNN solvers degrade as dimension scales?---we isolate three potential causes:
+
+\subsection{1. Function-Class Expressivity vs. Approximation}
+A potential hypothesis is that ICNN parameterization lacks sufficient expressivity to represent complex high-dimensional transport maps. However, as noted in supervisor discussions, the official Korotin \texttt{Mix3ToMix10} benchmark potentials were themselves generated using an ICNN architecture. Furthermore, our parameter norm telemetry shows that parameter norms remain bounded ($\sim 15 - 27$) without weight saturation. Thus, \textbf{function-class expressivity is not the primary structural limitation} for moderate dimensions.
+
+\subsection{2. Minimax Optimization Instability (Primary Failure Mode)}
+Our telemetry reveals compelling empirical evidence that \textbf{minimax optimization instability is the primary cause of high-dimensional performance degradation}:
 \begin{enumerate}
-    \item \textbf{Gradient Norm Explosion}: $\|\nabla f\|$ increases by $150\times$ from $D=2$ ($0.213$) to $D=32$ ($32.239$).
-    \item \textbf{Loss Divergence}: At $D=16$ and $D=32$, $f$-loss increases during early training iterations rather than monotonically decreasing.
-    \item \textbf{Constant Compute Cost}: Runtime remains flat ($\sim 135\text{s} - 158\text{s}$), demonstrating that failure is driven by optimization instability rather than computational scaling.
+    \item \textbf{Gradient Norm Explosion}: $\|\nabla f\|$ increases by $150\times$ from $D=2$ ($0.213$) to $D=32$ ($32.239$), exhibiting severe oscillations (peaking at $40.50$ at iteration 1600 in 32D).
+    \item \textbf{Loss Divergence}: At $D=16$ and $D=32$, $f$-loss increases during training (e.g., jumping from $9.11$ to $17.71$ at iteration 400 in 32D) and fails to recover below the initial value.
+    \item \textbf{Dual Gap Expansion}: Final $g$-loss (the conjugate dual gap) grows from $32.9$ at 4D to $300.4$ at 32D, showing that the inner maximization over $g$ escapes faster than the outer minimization over $f$ can follow.
+\end{enumerate}
+
+\subsection{3. Computational Scaling}
+We evaluated computational complexity by tracking per-iteration execution speed. Evaluating transport mappings requires computing gradient transformations $\nabla f(x)$, which involves reverse-mode automatic differentiation (Vector-Jacobian Products, VJP). Across dimensions $D=2$ to $D=32$, runtime remained virtually constant ($\sim 135\text{s} - 158\text{s}$ for 2000 iterations), and processing speed held steady at $12.6 - 14.8 \text{ iters/sec}$. This confirms that \textbf{computational complexity is not the bottleneck preventing learning}.
+
+\section{Future Work: Architectural Optimization Stabilization}
+
+Having isolated optimization instability as the primary bottleneck, future research will explore methods to stabilize high-dimensional minimax training:
+\begin{enumerate}
+    \item \textbf{Gradient Clipping}: Applying global norm clipping to $\|\nabla f\|$ and $\|\nabla g\|$ to prevent gradient spikes at $D \ge 16$.
+    \item \textbf{Functional Composition}: Exploring alternative convex function parameterizations generated through functional compositions (Boyd et al., 2004) to improve conditioning.
+    \item \textbf{Inner-Loop Scheduling}: Tuning the ratio of inner maximization steps ($g$) to outer minimization steps ($f$) to prevent dual gap divergence.
 \end{enumerate}
 
 \section{Conclusion}
-The modular PyTorch solver verifies 2D transport with high precision (0.88\% analytical error) and achieves 5.32\% L2-UVP on the official 2D benchmark. At high dimensions ($D \ge 16$), performance degrades due to gradient norm explosion and minimax optimization instability.
+This project successfully established a unit-tested modular PyTorch architecture for ICNN-based optimal transport. The solver verified analytical 2D Gaussian transport with 0.88\% error and achieved 5.32\% L2-UVP on the 2D benchmark. High-dimensional evaluation across $D \in \{2, 4, 8, 16, 32\}$ demonstrated that optimization instability—manifested through gradient norm explosion and dual gap expansion—serves as the primary failure mode in scaling minimax dual solvers.
 
 \end{document}
