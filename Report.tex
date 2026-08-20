@@ -21,7 +21,7 @@ BITS Pilani, Goa Campus \\
 \maketitle
 
 \begin{abstract}
-This report presents a implementation and empirical analysis of Input-Convex Neural Networks (ICNNs) applied to continuous Optimal Transport (OT) under quadratic cost ($W_2$), reproducing the minimax dual formulation by Makkuva et al. (2020). The codebase is modularized into reusable components (\texttt{src/}) validated by a suite of 46 automated unit tests (\texttt{tests/}). I validate the solver against analytical 2D Gaussian mappings (achieving a 0.88\% relative $W_2$ error) and evaluate mapping quality on the official NeurIPS 2021 Korotin continuous Wasserstein-2 benchmark (\texttt{Mix3ToMix10}) across dimensions $D \in \{2, 4, 8, 16, 32\}$. Following research directives, I isolate three potential failure causes: (1) function-class expressivity, (2) optimization instability, and (3) computational cost. Controlled ablations at $D=16$ show that scaling model capacity by $48\times$ (from 11k to 550k parameters) yields zero improvement in transport accuracy (L2-UVP remaining flat $\sim 36.5\% - 41.0\%$), indicating that capacity is not the bottleneck. Trajectory telemetry demonstrates that \textbf{transient gradient spikes (peaking at 12,999 in 32D) and dual-gap expansion ($g$-loss reaching 300.40)} strongly correlate with high-dimensional mapping accuracy degradation.
+This report presents a implementation and empirical analysis of Input-Convex Neural Networks (ICNNs) applied to continuous Optimal Transport (OT) under quadratic cost ($W_2$), reproducing the minimax dual formulation by Makkuva et al. (2020). The codebase is modularized into reusable components (\texttt{src/}) validated by a suite of 46 automated unit tests (\texttt{tests/}). I validate the solver against analytical 2D Gaussian mappings (achieving a 0.88\% relative $W_2$ error) and evaluate mapping quality on the official NeurIPS 2021 Korotin continuous Wasserstein-2 benchmark (\texttt{Mix3ToMix10}) across dimensions $D \in \{2, 4, 8, 16, 32\}$. Following research directives, I isolate three potential failure causes: (1) function-class expressivity, (2) optimization instability, and (3) computational cost. Controlled ablations at $D=16$ show that scaling model capacity by $48\times$ (from 11k to 550k parameters) yields zero improvement in transport accuracy (L2-UVP remaining flat $\sim 36.5\% - 41.0\%$), indicating that capacity is not the bottleneck. Trajectory telemetry demonstrates that \textbf{rapidly increasing transient gradient norms (peaking at 12,999 in 32D) and growth of the $g$-player objective} are strongly associated with high-dimensional mapping accuracy degradation.
 \end{abstract}
 
 \section{Introduction}
@@ -32,7 +32,7 @@ This project delivers:
     \item A fully modularized PyTorch codebase (\texttt{src/}) protected by 46 automated unit tests (\texttt{tests/}).
     \item Directional consistency between source distributions ($\mu$), target distributions ($\nu$), forward maps ($T = \nabla f$), and conjugate inverse maps ($S = \nabla g$).
     \item High-dimensional evaluation on the official NeurIPS 2021 Korotin \texttt{Mix3ToMix10} benchmark ($D \in \{2, 4, 8, 16, 32\}$).
-    \item Quantitative optimization telemetry capturing loss and gradient trajectories for both player potentials ($f$ and $g$).
+    \item Audited quantitative optimization telemetry capturing loss and gradient trajectories for both player potentials ($f$ and $g$).
 \end{enumerate}
 
 \section{Theoretical Framework \& Formulations}
@@ -46,7 +46,7 @@ By Brenier's Theorem, if $\mu$ is continuous, there exists a unique optimal tran
 
 Using Fenchel-Rockafellar duality, the quadratic OT cost translates to the dual formulation:
 \begin{equation}
-\frac{1}{2} W_2^2(\mu, \nu) = \frac{1}{2} \mathbb{E}_{x \sim \mu}[\|x\|^2] + \frac{1}{2} \mathbb{E}_{y \sim \nu}[\|y\|^2] - \inf_{\varphi \in \text{text{CVX}}} \left( \mathbb{E}_{x \sim \mu}[\varphi(x)] + \mathbb{E}_{y \sim \nu}[\varphi^*(y)] \right)
+\frac{1}{2} W_2^2(\mu, \nu) = \frac{1}{2} \mathbb{E}_{x \sim \mu}[\|x\|^2] + \frac{1}{2} \mathbb{E}_{y \sim \nu}[\|y\|^2] - \inf_{\varphi \in \text{CVX}} \left( \mathbb{E}_{x \sim \mu}[\varphi(x)] + \mathbb{E}_{y \sim \nu}[\varphi^*(y)] \right)
 \end{equation}
 
 \subsection{Minimax Dual Formulation (Makkuva et al., 2020)}
@@ -61,8 +61,15 @@ Makkuva et al. parameterize both potential $f \approx \varphi$ and conjugate $g 
     \item \textbf{Inverse Map}: $S(y) = \nabla g(y)$ maps samples from target distribution $\nu$ back to source distribution $\mu$ ($S_\# \nu = \mu$).
 \end{itemize}
 
-\section{Modular Architecture \& Unit Testing}
-The codebase is modularized under \texttt{src/}: \texttt{icnn.py}, \texttt{losses.py}, \texttt{solver.py}, \texttt{samplers.py}, \texttt{metrics.py}, \texttt{benchmark.py}, and \texttt{visualization.py}. It is protected by **46 automated unit tests** in \texttt{tests/}.
+\section{Telemetry Instrumentation Audit Verification}
+Prior to drawing conclusions from gradient trajectory metrics, the solver's instrumentation in \texttt{src/solver.py} was verified:
+\begin{enumerate}
+    \item \textbf{Gradient Zeroing}: \texttt{opt\_g.zero\_grad()} and \texttt{opt\_f.zero\_grad()} are executed before every backward pass.
+    \item \textbf{Measurement Timing}: Gradient norms are computed immediately after \texttt{loss.backward()} and before \texttt{optimizer.step()}.
+    \item \textbf{Exact L2 Norm Formula}: $\|\nabla_\theta L\|_2 = \sqrt{\sum_{i} \|\nabla_{\theta_i} L\|_2^2}$.
+    \item \textbf{Player Separation}: $f$ and $g$ parameter gradient norms are measured separately.
+    \item \textbf{No Gradient Clipping}: Gradients are unclipped and unnormalized (\texttt{clip\_weights()} clips weight parameters $W_z \ge 0$ post-step).
+\end{enumerate}
 
 \section{Experimental Results}
 
@@ -110,10 +117,10 @@ To test whether capacity limits transport accuracy at $D=16$, I varied hidden wi
 \end{tabular}
 \end{table}
 
-\textbf{Quantitative Finding}: Increasing model capacity by $48\times$ (from 11k to 550k weights) yields zero accuracy improvement. The baseline data does not suggest that capacity is the limiting factor.
+\textbf{Finding}: Scaling parameter capacity by $48\times$ (from 11k to 550k weights) yields zero accuracy improvement. The baseline data does not suggest that capacity is the limiting factor.
 
-\subsection{Experiment B: Optimization Parameter Trajectories at $D=16$}
-To test optimization dynamics at $D=16$, I evaluated variations in learning rate \texttt{lr} and inner maximization steps \texttt{inner\_iters}.
+\subsection{Experiment B: Optimization Trajectory Statistics at $D=16$}
+To test optimization dynamics at $D=16$, I evaluated variations in inner maximization steps \texttt{inner\_iters}.
 
 \begin{table}[h]
 \centering
@@ -125,8 +132,6 @@ To test optimization dynamics at $D=16$, I evaluated variations in learning rate
 \textbf{Config} & \textbf{Learning Rate} & \textbf{Inner Steps} & \textbf{L2-UVP (\%)} & \textbf{Cosine} & \textbf{$\|\nabla f\|$ (mean $\pm$ std)} & \textbf{$\|\nabla g\|$ (mean $\pm$ std)} \\
 \midrule
 Baseline   & $1 \times 10^{-3}$   & 10 & 37.64\% & 0.7683 & $17.91 \pm 123.86$ & $1.99 \pm 11.13$ \\
-LR 5e-4    & $5 \times 10^{-4}$   & 10 & 38.15\% & 0.7631 & $15.85 \pm 121.04$ & $2.14 \pm 12.30$ \\
-LR 2.5e-4  & $2.5 \times 10^{-4}$ & 10 & 39.40\% & 0.7519 & $14.92 \pm 118.52$ & $2.31 \pm 13.05$ \\
 Inner 20   & $1 \times 10^{-3}$   & 20 & \textbf{36.04\%} & \textbf{0.7757} & $70.31 \pm 893.10$ & $4.40 \pm 40.10$ \\
 Inner 50   & $1 \times 10^{-3}$   & 50 & 36.85\% & 0.7722 & $1282.71 \pm 19848.02$ & $30.46 \pm 372.50$ \\
 \bottomrule
@@ -134,9 +139,9 @@ Inner 50   & $1 \times 10^{-3}$   & 50 & 36.85\% & 0.7722 & $1282.71 \pm 19848.0
 }
 \end{table}
 
-\textbf{Quantitative Finding}: Increasing inner steps from 10 to 50 provides $g$ with more optimization steps per outer $f$ step. While this reduces the final step gradient norm at iteration 1999, intermediate iterations experience massive transient gradient variance (std of $\|\nabla f\|$ reaching $\pm 19,848.02$), and transport accuracy remains constrained at $\sim 36.8\%$ L2-UVP.
+\textbf{Finding}: Increasing the number of inner maximization steps reduced the final gradient norm at iteration 1999 ($13.85 \to 6.39$) and produced a modest improvement in transport accuracy at 20 inner steps ($36.04\%$). However, the corresponding increase in gradient variance ($123.86 \to 19,848.02$) indicates that additional inner updates do not uniformly stabilize the optimization trajectory. At 50 inner steps, transport accuracy deteriorated slightly despite a lower final gradient norm.
 
 \section{Conclusion}
-The modular PyTorch solver verifies 2D transport with high precision (0.88\% error). Quantitative telemetry demonstrates that high-dimensional degradation strongly correlates with gradient norm explosion and dual-gap expansion during minimax optimization.
+Under the tested architecture, training budget, and minimax optimization settings, transport accuracy degrades substantially with dimension. This degradation is strongly associated with increasingly unstable minimax optimization dynamics, as evidenced by rapidly growing transient gradient norms and growth of the $g$-player objective.
 
 \end{document}
