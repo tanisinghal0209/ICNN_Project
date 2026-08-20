@@ -76,7 +76,7 @@ def main():
     )
     
     # Load the trained potentials to evaluate Wasserstein distance
-    from icnn import ICNN
+    from src.icnn import ICNN
     f = ICNN(config["input_dim"], config["hidden_dims"], activation=config["activation"]).to(device)
     g = ICNN(config["input_dim"], config["hidden_dims"], activation=config["activation"]).to(device)
     

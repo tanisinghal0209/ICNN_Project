@@ -1,18 +1,26 @@
-"""Input-Convex Neural Network (ICNN), Amos, Xu & Kolter (2017)."""
+"""
+Input-Convex Neural Network (ICNN) and Standard MLP architectures.
+
+Extracted 1:1 from the canonical notebook (Cell 06).
+Source of truth: notebooks/ICNN_Optimal_Transport_Colab_FINAL.ipynb
+
+DO NOT modify the mathematics here during the refactoring phase.
+Any changes require explicit approval and a D=2 regression test.
+"""
 import torch
 import torch.nn as nn
 
 
 class StandardMLP(nn.Module):
-    def __init__(self, input_dim, hidden_dims=(64, 64, 64), activation="softplus"):
+    def __init__(self, input_dim, hidden_dims=(128, 128, 128), activation='softplus'):
         super().__init__()
         self.input_dim = input_dim
         self.hidden_dims = list(hidden_dims)
         self.act = {
-            "softplus": nn.Softplus(),
-            "relu": nn.ReLU(),
-            "leaky_relu": nn.LeakyReLU(0.2),
-            "elu": nn.ELU(),
+            'softplus': nn.Softplus(),
+            'relu': nn.ReLU(),
+            'leaky_relu': nn.LeakyReLU(0.2),
+            'elu': nn.ELU(),
         }[activation]
 
         dims = [input_dim] + self.hidden_dims + [1]
@@ -30,28 +38,27 @@ class StandardMLP(nn.Module):
 
     @torch.no_grad()
     def clip_weights(self):
-        return None
-
-    def convexity_penalty(self):
-        return torch.tensor(0.0, device=next(self.parameters()).device)
+        # StandardMLP has no convexity constraint — intentional no-op
+        pass
 
     def grad(self, y):
         y = y.clone().requires_grad_(True)
-        f_val = self.forward(y)
-        (grad_y,) = torch.autograd.grad(f_val.sum(), y, create_graph=True)
+        with torch.enable_grad():
+            f_val = self.forward(y)
+            (grad_y,) = torch.autograd.grad(f_val.sum(), y, create_graph=True)
         return grad_y
 
 
 class ICNN(nn.Module):
-    def __init__(self, input_dim, hidden_dims=(64, 64, 64), activation="softplus"):
+    def __init__(self, input_dim, hidden_dims=(128, 128, 128), activation='softplus'):
         super().__init__()
         self.input_dim = input_dim
         self.hidden_dims = list(hidden_dims)
         self.act = {
-            "softplus": nn.Softplus(),
-            "relu": nn.ReLU(),
-            "leaky_relu": nn.LeakyReLU(0.2),
-            "elu": nn.ELU(),
+            'softplus': nn.Softplus(),
+            'relu': nn.ReLU(),
+            'leaky_relu': nn.LeakyReLU(0.2),
+            'elu': nn.ELU(),
         }[activation]
 
         dims = [input_dim] + self.hidden_dims + [1]
@@ -75,15 +82,9 @@ class ICNN(nn.Module):
             if layer is not None:
                 layer.weight.data.clamp_(min=0)
 
-    def convexity_penalty(self):
-        penalty = 0.0
-        for layer in self.Wz:
-            if layer is not None:
-                penalty = penalty + torch.relu(-layer.weight).sum()
-        return penalty
-
     def grad(self, y):
         y = y.clone().requires_grad_(True)
-        f_val = self.forward(y)
-        (grad_y,) = torch.autograd.grad(f_val.sum(), y, create_graph=True)
+        with torch.enable_grad():
+            f_val = self.forward(y)
+            (grad_y,) = torch.autograd.grad(f_val.sum(), y, create_graph=True)
         return grad_y

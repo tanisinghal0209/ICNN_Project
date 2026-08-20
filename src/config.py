@@ -25,6 +25,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "log_every": 500,
     "checkpoint_every": 1000,
     "exp_name": "baseline",
+    "benchmark_path": "/Users/tanishasinghal/Downloads/Wasserstein2Benchmark",
 }
 
 
@@ -69,6 +70,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--log_every", type=int, default=None)
     parser.add_argument("--checkpoint_every", type=int, default=None)
     parser.add_argument("--exp_name", type=str, default=None)
+    parser.add_argument("--benchmark_path", type=str, default=None)
     return parser
 
 

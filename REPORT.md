@@ -138,7 +138,10 @@ I evaluated my solver on the official **Wasserstein-2 Map Benchmark** (`Mix3ToMi
 
 ---
 
-## 9. Lessons Learned & Discussion
+## 9. Threats to Validity
+The experimental results should be interpreted with a few important caveats. First, the implementation was executed on CPU in PyTorch, whereas the original OT-ICNN reference implementation was developed in TensorFlow 1.x and used different runtime assumptions. As a result, runtime comparisons should be treated as qualitative rather than as strict implementation-speed benchmarks. Second, the training procedure is stochastic because of random initialization and minibatch sampling; repeated runs may yield small variations in final loss and benchmark metrics. Finally, the reported benchmark values reflect one reproducible experimental configuration rather than absolute performance limits, and should be read as evidence of relative behavior under the chosen setup rather than universal claims about ICNN performance.
+
+## 10. Lessons Learned & Discussion
 
 1. **Convexity is essential**: The positive weight constraint is not just a theoretical requirement; it is a structural necessity to prevent non-monotone mapping crossings.
 2. **Softplus is superior to ReLU**: Smooth activations are necessary for computing gradients of gradients. ReLU's flat regions halt backpropagation through gradient operations.
@@ -147,12 +150,12 @@ I evaluated my solver on the official **Wasserstein-2 Map Benchmark** (`Mix3ToMi
 
 ---
 
-## 10. Conclusion
+## 11. Conclusion
 In this project, I successfully implemented, validated, and evaluated an ICNN-based optimal transport solver in PyTorch. My solver reproduced the analytical Gaussian transport with a relative error of 0.88% and closely matched the Korotin benchmark baselines. However, my scaling and failure analyses highlight that ICNNs trade expressiveness and computational efficiency (due to second-order backpropagation) for their theoretical guarantees. Future work should investigate regularization techniques (such as gradient penalties) to stabilize minimax training in higher dimensions.
 
 ---
 
-## 11. References
+## 12. References
 1. Makkuva, A., Taghvaei, A., Oh, S., & Lee, J. (2020). *Optimal transport using input-convex neural networks*. ICML.
 2. Amos, B., Xu, L., & Kolter, J. Z. (2017). *Input convex neural networks*. ICML.
 3. Korotin, A., Li, L., Genevay, A., Solomon, J. M., Filippov, A., & Burnaev, E. (2021). *Do neural optimal transport solvers work? A continuous Wasserstein-2 benchmark*. NeurIPS.

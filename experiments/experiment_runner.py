@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from train import train_icnn_ot
+from src.solver import train_icnn_ot
 
 
 def save_json(path, data):
