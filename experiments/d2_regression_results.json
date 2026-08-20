@@ -1,0 +1,36 @@
+{
+  "modular_run": {
+    "L2-UVP": 5.3153300285339355,
+    "Cosine Similarity": 0.862567126750946,
+    "L2 Error": 0.10568311810493469,
+    "training_time": 152.83333897590637,
+    "final_f_loss": 1.7751388549804688
+  },
+  "notebook_reference": {
+    "L2-UVP": 5.1044,
+    "Cosine Similarity": 0.858,
+    "L2 Error": 0.1027,
+    "Training Time": 272.71,
+    "note": "n_iters=2000, batch=256, hidden=(128,128,128), seed=0"
+  },
+  "difference": {
+    "L2-UVP": 0.2109300285339355,
+    "Cosine Similarity": 0.00456712675094606,
+    "L2 Error": 0.0029831181049346928
+  },
+  "benchmark_module": "/Users/tanishasinghal/Downloads/Wasserstein2Benchmark/src/map_benchmark.py",
+  "settings": {
+    "dim": 2,
+    "n_iters": 2000,
+    "batch_size": 256,
+    "hidden_dims": [
+      128,
+      128,
+      128
+    ],
+    "lr": 0.001,
+    "inner_iters": 10,
+    "activation": "softplus",
+    "seed": 0
+  }
+}
