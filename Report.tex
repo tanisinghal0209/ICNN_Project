@@ -9,7 +9,7 @@
 \usepackage{microtype}
 \geometry{a4paper, margin=1in}
 
-\title{\Large \textbf{Input-Convex Neural Networks for Continuous Optimal Transport:\\ Modular Implementation, High-Dimensional Evaluation, and Optimization Telemetry}}
+\title{\Large \textbf{Input-Convex Neural Networks for Continuous Optimal Transport:\\ Modular Software Architecture, High-Dimensional Evaluation, and Optimization Dynamics Telemetry}}
 \author{\textbf{Tanisha Singhal} \\
 Department of Computer Science \\
 BITS Pilani, Goa Campus \\
@@ -21,11 +21,13 @@ BITS Pilani, Goa Campus \\
 \maketitle
 
 \begin{abstract}
-This report presents a implementation and empirical analysis of Input-Convex Neural Networks (ICNNs) applied to continuous Optimal Transport (OT) under quadratic cost ($W_2$), reproducing the minimax dual formulation by Makkuva et al. (2020). The codebase is modularized into reusable components (\texttt{src/}) validated by a suite of 46 automated unit tests (\texttt{tests/}). I validate the solver against analytical 2D Gaussian mappings (achieving a 0.88\% relative $W_2$ error) and evaluate mapping quality on the official NeurIPS 2021 Korotin continuous Wasserstein-2 benchmark (\texttt{Mix3ToMix10}) across dimensions $D \in \{2, 4, 8, 16, 32\}$. Following research directives, I isolate three potential failure causes: (1) function-class expressivity, (2) optimization instability, and (3) computational cost. Controlled ablations at $D=16$ show that scaling model capacity by $48\times$ (from 11k to 550k parameters) yields zero improvement in transport accuracy (L2-UVP remaining flat $\sim 36.5\% - 41.0\%$), indicating that capacity is not the bottleneck. Trajectory telemetry demonstrates that \textbf{rapidly increasing transient gradient norms (peaking at 12,999 in 32D) and growth of the $g$-player objective} are strongly associated with high-dimensional mapping accuracy degradation.
+This paper presents a PyTorch implementation, unit-tested software architecture, and empirical investigation of Input-Convex Neural Networks (ICNNs) applied to continuous Optimal Transport (OT) under quadratic cost ($W_2$), reproducing the minimax dual formulation by Makkuva et al. (2020). The software codebase is modularized into decoupled components under \texttt{src/} and protected by a suite of 46 automated unit tests (\texttt{tests/}). We validate the solver against analytical 2D Gaussian transport maps (achieving a 0.88\% relative $W_2$ error) and evaluate mapping quality on the official NeurIPS 2021 Korotin continuous Wasserstein-2 benchmark (\texttt{Mix3ToMix10}) across dimensions $D \in \{2, 4, 8, 16, 32\}$. Following research directives to isolate the failure modes in higher dimensions, we systematically evaluate three potential causes: (1) function-class expressivity, (2) optimization instability, and (3) computational cost. Controlled ablations at $D=16$ show that scaling model parameter capacity by $48\times$ (from 11,537 to 550,929 parameters) yields flat transport performance (L2-UVP remaining bounded between $36.49\%$ and $41.01\%$), indicating that capacity is not the primary bottleneck under the tested setup. Iteration-level telemetry demonstrates that \textbf{rapidly increasing transient gradient norms (peaking at 12,999 in 32D) and growth of the $g$-player objective} are strongly associated with high-dimensional mapping accuracy degradation.
 \end{abstract}
 
 \section{Introduction}
-Optimal Transport (OT) provides a mathematical framework for comparing, aligning, and pushing forward probability measures. Computing the Monge map---the transport map $T: \mathbb{R}^D \to \mathbb{R}^D$ minimizing quadratic transport cost---requires enforcing cyclical monotonicity. Under Brenier's theorem, this map is uniquely characterized as the gradient of a convex potential function: $T(x) = \nabla \varphi(x)$. Input-Convex Neural Networks (ICNNs), introduced by Amos et al. (2017), solve this by constraining hidden layer weights to be non-negative and using convex, non-decreasing activation functions.
+Optimal Transport (OT) provides a mathematical framework for comparing, aligning, and pushing forward probability measures. While discrete OT formulations suffer from cubic computational complexity with respect to sample size, continuous OT parameterizes transport maps using deep neural networks, enabling applications in generative modeling (VAEs, GANs), domain adaptation, and computational biology.
+
+Computing the Monge map---the transport map $T: \mathbb{R}^D \to \mathbb{R}^D$ minimizing quadratic transport cost---requires enforcing cyclical monotonicity. Under Brenier's theorem, this map is uniquely characterized as the gradient of a convex potential function: $T(x) = \nabla \varphi(x)$. Standard deep neural networks cannot guarantee convexity in their inputs. Input-Convex Neural Networks (ICNNs), introduced by Amos et al. (2017), solve this by constraining hidden layer weights to be non-negative and using convex, non-decreasing activation functions.
 
 This project delivers:
 \begin{enumerate}
@@ -33,38 +35,59 @@ This project delivers:
     \item Directional consistency between source distributions ($\mu$), target distributions ($\nu$), forward maps ($T = \nabla f$), and conjugate inverse maps ($S = \nabla g$).
     \item High-dimensional evaluation on the official NeurIPS 2021 Korotin \texttt{Mix3ToMix10} benchmark ($D \in \{2, 4, 8, 16, 32\}$).
     \item Audited quantitative optimization telemetry capturing loss and gradient trajectories for both player potentials ($f$ and $g$).
+    \item Controlled failure-mode isolation experiments at $D=16$ evaluating network width and inner maximization scheduling.
 \end{enumerate}
 
-\section{Theoretical Framework \& Formulations}
+\section{Theoretical Framework \& Mathematical Formulations}
 
 \subsection{Kantorovich Duality \& Brenier's Theorem}
 Let $\mu$ and $\nu$ be probability measures on $\mathbb{R}^D$ with finite second moments. The Wasserstein-2 distance under quadratic cost is:
 \begin{equation}
 W_2^2(\mu, \nu) = \inf_{\pi \in \Pi(\mu, \nu)} \mathbb{E}_{(x, y) \sim \pi} \left[ \|x - y\|^2 \right]
 \end{equation}
-By Brenier's Theorem, if $\mu$ is continuous, there exists a unique optimal transport map $T(x) = \nabla \varphi(x)$ pushing forward $\mu$ to $\nu$ ($T_\# \mu = \nu$).
+where $\Pi(\mu, \nu)$ is the set of joint distributions (couplings) whose marginals are $\mu$ and $\nu$. By Brenier's Theorem, if $\mu$ is absolutely continuous with respect to the Lebesgue measure, there exists a unique optimal transport map $T(x) = \nabla \varphi(x)$ pushing forward $\mu$ to $\nu$ ($T_\# \mu = \nu$), where $\varphi: \mathbb{R}^D \to \mathbb{R}$ is a convex function.
 
 Using Fenchel-Rockafellar duality, the quadratic OT cost translates to the dual formulation:
 \begin{equation}
 \frac{1}{2} W_2^2(\mu, \nu) = \frac{1}{2} \mathbb{E}_{x \sim \mu}[\|x\|^2] + \frac{1}{2} \mathbb{E}_{y \sim \nu}[\|y\|^2] - \inf_{\varphi \in \text{CVX}} \left( \mathbb{E}_{x \sim \mu}[\varphi(x)] + \mathbb{E}_{y \sim \nu}[\varphi^*(y)] \right)
 \end{equation}
+where $\varphi^*(y) = \sup_{z \in \mathbb{R}^D} \langle y, z \rangle - \varphi(z)$ denotes the Fenchel conjugate of $\varphi$.
 
 \subsection{Minimax Dual Formulation (Makkuva et al., 2020)}
-Makkuva et al. parameterize both potential $f \approx \varphi$ and conjugate $g \approx \varphi^*$ using two separate ICNNs, formulating a minimax game:
+Evaluating the exact Fenchel conjugate $\varphi^*$ analytically is intractable for general high-dimensional distributions. Makkuva et al. bypass explicit conjugation by parameterizing both the potential $f \approx \varphi$ and its conjugate $g \approx \varphi^*$ using two separate ICNNs.
+
+Since $\nabla \varphi^* = (\nabla \varphi)^{-1}$, the inverse transport map pushing $\nu \to \mu$ is given by $S(y) = \nabla g(y)$. The dual OT problem is formulated as a zero-sum minimax game between potential $f$ and conjugate potential $g$:
 \begin{equation}
 \min_{f \in \text{CVX}} \max_{g \in \text{CVX}} L(f, g) := \mathbb{E}_{x \sim \mu}[f(x)] + \mathbb{E}_{y \sim \nu} \left[ \langle y, \nabla g(y) \rangle - f(\nabla g(y)) \right]
 \end{equation}
+The inner maximization over $g$ enforces that $g$ approximates the Fenchel conjugate $f^*$, while the outer minimization over $f$ minimizes the total transport cost.
 
-\subsection{Directional Consistency}
+\subsection{Directional Consistency of Mappings}
+To ensure rigorous mathematical alignment across all experiments:
 \begin{itemize}
     \item \textbf{Forward Map}: $T(x) = \nabla f(x)$ maps samples from source distribution $\mu$ to target distribution $\nu$ ($T_\# \mu = \nu$).
     \item \textbf{Inverse Map}: $S(y) = \nabla g(y)$ maps samples from target distribution $\nu$ back to source distribution $\mu$ ($S_\# \nu = \mu$).
 \end{itemize}
+In the multimodal mixture experiment, $f$ pushes unimodal Gaussian source samples $x \sim \mu = \mathcal{N}(0, 0.8^2 I_2)$ forward into the 8 distinct mixture modes of $\nu$, whereas $\nabla g(y)$ maps mixture target samples $y \sim \nu$ back into the unimodal source.
 
-\section{Telemetry Instrumentation Audit Verification}
-Prior to drawing conclusions from gradient trajectory metrics, the solver's instrumentation in \texttt{src/solver.py} was verified:
+\section{Modular Architecture \& Telemetry Audit}
+
+\subsection{Software Scaffolding (\texttt{src/})}
+The codebase is structured into reusable, decoupled Python modules under \texttt{src/}:
+\begin{itemize}
+    \item \texttt{src/icnn.py}: Contains \texttt{ICNN} and \texttt{StandardMLP} network architectures. Implements \texttt{clip\_weights()} clamping $W_z \ge 0$ post-step and \texttt{grad(y)} wrapped in \texttt{torch.enable\_grad()} to enable gradient evaluations inside \texttt{no\_grad} contexts.
+    \item \texttt{src/losses.py}: Implements the dual \texttt{minimax\_loss(f, g, x\_mu, y\_nu)}.
+    \item \texttt{src/solver.py}: Implements \texttt{train\_icnn\_ot} with alternating inner/outer optimization steps and iteration-level telemetry logging.
+    \item \texttt{src/samplers.py}: Implements distribution samplers for Gaussian, Gaussian Mixture, Disconnected, and Finite Pool sources.
+    \item \texttt{src/metrics.py}: Implements \texttt{compute\_official\_l2\_uvp} measuring L2 Unexplained Variance Percentage and Cosine Similarity.
+    \item \texttt{src/benchmark.py}: Dynamic benchmark loader supporting environment-configurable paths (\texttt{WASSERSTEIN\_BENCHMARK\_PATH}).
+\end{itemize}
+The module is protected by **46 automated unit tests** in \texttt{tests/}.
+
+\subsection{Telemetry Instrumentation Audit Verification}
+Prior to analyzing gradient trajectory metrics, the solver's instrumentation in \texttt{src/solver.py} was audited:
 \begin{enumerate}
-    \item \textbf{Gradient Zeroing}: \texttt{opt\_g.zero\_grad()} and \texttt{opt\_f.zero\_grad()} are executed before every backward pass.
+    \item \textbf{Gradient Zeroing}: \texttt{opt\_g.zero\_grad()} and \texttt{opt\_f.zero\_grad()} are explicitly executed before every backward pass.
     \item \textbf{Measurement Timing}: Gradient norms are computed immediately after \texttt{loss.backward()} and before \texttt{optimizer.step()}.
     \item \textbf{Exact L2 Norm Formula}: $\|\nabla_\theta L\|_2 = \sqrt{\sum_{i} \|\nabla_{\theta_i} L\|_2^2}$.
     \item \textbf{Player Separation}: $f$ and $g$ parameter gradient norms are measured separately.
@@ -74,9 +97,11 @@ Prior to drawing conclusions from gradient trajectory metrics, the solver's inst
 \section{Experimental Results}
 
 \subsection{Analytical Validation (2D Gaussian $\to$ Gaussian)}
-Validation on a 2D Gaussian mapping task ($\mu = \mathcal{N}(0, I_2)$ to $\nu = \mathcal{N}([2, -1], 0.6^2 I_2)$) yielded an empirical $W_2 = 2.3270$ against theoretical $W_2 = 2.3065$, producing a relative error of \textbf{0.88\%}.
+Validation on a 2D Gaussian mapping task ($\mu = \mathcal{N}(0, I_2)$ to $\nu = \mathcal{N}([2, -1], 0.6^2 I_2)$) yielded an empirical $W_2 = 2.3270$ against theoretical $W_2 = 2.3065$, producing a relative error of \textbf{0.88\%} (absolute error: $0.0205$).
 
 \subsection{Baseline High-Dimensional Sweep ($D \in \{2, 4, 8, 16, 32\}$)}
+
+Using official Korotin \texttt{Mix3ToMix10} benchmark checkpoints, I conducted a baseline sweep holding architecture (3 layers of 128 units, Softplus), learning rate ($\text{lr}=10^{-3}$), inner iterations (10), and training budget (2000 iterations) fixed.
 
 \begin{table}[h]
 \centering
@@ -100,7 +125,7 @@ Validation on a 2D Gaussian mapping task ($\mu = \mathcal{N}(0, I_2)$ to $\nu = 
 \section{Failure Mode Isolation Experiments at $D=16$}
 
 \subsection{Experiment A: Capacity / Expressivity Ablation}
-To test whether capacity limits transport accuracy at $D=16$, I varied hidden width $W \in \{64, 128, 256, 512\}$.
+To test whether network capacity limits transport accuracy at $D=16$, I varied hidden width $W \in \{64, 128, 256, 512\}$.
 
 \begin{table}[h]
 \centering
@@ -118,7 +143,7 @@ To test whether capacity limits transport accuracy at $D=16$, I varied hidden wi
 \end{tabular}
 \end{table}
 
-\textbf{Finding}: Scaling parameter capacity by $48\times$ (from 11k to 550k weights) yields zero accuracy improvement. The baseline data does not suggest that capacity is the limiting factor.
+\textbf{Finding}: Scaling parameter capacity by $48\times$ (from 11k to 550k weights) yields flat performance. The baseline data does not suggest that capacity is the limiting factor.
 
 \subsection{Experiment B: Optimization Trajectory Statistics at $D=16$}
 To test optimization dynamics at $D=16$, I evaluated variations in inner maximization steps \texttt{inner\_iters}.
@@ -141,6 +166,17 @@ Inner 50   & $1 \times 10^{-3}$   & 50 & 36.85\% & 0.7722 & $1282.71 \pm 19848.0
 \end{table}
 
 \textbf{Finding}: Increasing the number of inner maximization steps reduced the final gradient norm at iteration 1999 ($13.85 \to 6.39$) and produced a modest improvement in transport accuracy at 20 inner steps ($36.04\%$). However, the corresponding increase in gradient variance ($123.86 \to 19,848.02$) indicates that additional inner updates do not uniformly stabilize the optimization trajectory. At 50 inner steps, transport accuracy deteriorated slightly despite a lower final gradient norm.
+
+\section{Detailed Optimization Dynamics Discussion}
+
+The quantitative trajectory telemetry allows us to evaluate the high-dimensional degradation mechanisms:
+
+\begin{enumerate}
+    \item \textbf{Transient Gradient Norm Spikes}: Peak gradient norms for player $f$ increase rapidly with dimension---from $10.80$ at $D=2$ to $2,685.76$ at $D=16$ and $12,999.47$ at $D=32$. Peak conjugate gradient norms for player $g$ similarly scale from $14.96$ (2D) to $919.33$ (32D).
+    \item \textbf{Growth of the $g$-Player Objective}: The $g$-player objective magnitude grows monotonically from $8.82$ in 2D to $300.40$ in 32D, consistent with an increasingly difficult inner maximization as dimension grows.
+    \item \textbf{Outer Loss Trajectory Divergence}: At $D=16$ and $D=32$, $f$-loss increases during optimization ($6.62 \to 10.71$ in 16D; $9.11 \to 16.55$ in 32D, an 82\% increase). The solver moves away from initial potential configurations.
+    \item \textbf{Effect of Inner Maximization Scheduling}: Increasing inner steps from 10 to 50 provides potential $g$ with more optimization steps per $f$ step. While this lowers final step gradient norms at iteration 1999, intermediate iterations experience massive transient variance (standard deviation of $\|\nabla_\theta L_f\|$ reaching $\pm 19,848.02$), and transport accuracy remains constrained at $\sim 36.8\%$ L2-UVP.
+\end{enumerate}
 
 \section{Conclusion}
 Under the tested architecture, training budget, and minimax optimization settings, transport accuracy degrades substantially with dimension. This degradation is strongly associated with increasingly unstable minimax optimization dynamics, as evidenced by rapidly growing transient gradient norms and growth of the $g$-player objective.
