@@ -21,7 +21,7 @@ BITS Pilani, Goa Campus \\
 \maketitle
 
 \begin{abstract}
-This paper presents a PyTorch implementation, unit-tested software architecture, and empirical investigation of Input-Convex Neural Networks (ICNNs) applied to continuous Optimal Transport (OT) under quadratic cost ($W_2$), reproducing the minimax dual formulation by Makkuva et al. (2020). The software codebase is modularized into decoupled components under \texttt{src/} and protected by a suite of 46 automated unit tests (\texttt{tests/}). We validate the solver against analytical 2D Gaussian transport maps (achieving a 0.88\% relative $W_2$ error) and evaluate mapping quality on the official NeurIPS 2021 Korotin continuous Wasserstein-2 benchmark (\texttt{Mix3ToMix10}) across dimensions $D \in \{2, 4, 8, 16, 32\}$. Following research directives to isolate the failure modes in higher dimensions, we systematically evaluate three potential causes: (1) function-class expressivity, (2) optimization instability, and (3) computational cost. Controlled ablations at $D=16$ show that scaling model parameter capacity by $48\times$ (from 11,537 to 550,929 parameters) yields flat transport performance (L2-UVP remaining bounded between $36.49\%$ and $41.01\%$), indicating that capacity is not the primary bottleneck under the tested setup. Iteration-level telemetry demonstrates that \textbf{rapidly increasing transient gradient norms (peaking at 12,999 in 32D) and growth of the $g$-player objective} are strongly associated with high-dimensional mapping accuracy degradation.
+This paper presents a PyTorch implementation, unit-tested software architecture, and empirical investigation of Input-Convex Neural Networks (ICNNs) applied to continuous Optimal Transport (OT) under quadratic cost ($W_2$), reproducing the minimax dual formulation by Makkuva et al. (2020). The software codebase is modularized into decoupled components under \texttt{src/} and protected by 53 automated unit tests. We validate the solver against analytical 2D Gaussian transport maps and evaluate mapping quality on the official NeurIPS 2021 Korotin continuous Wasserstein-2 benchmark (\texttt{Mix3ToMix10}) across dimensions $D \in \{2, 4, 8, 16, 32\}$. A $D=16$ width ablation scales capacity by $48\times$ without systematic transport improvement. An oracle paired-map control removes the two-player game and reduces peak parameter-gradient norms from 2,685.76/12,999.47 to 1.08/1.39 at $D=16/32$, while unequal player learning rates also strongly suppress minimax gradient spikes. However, neither intervention fully recovers high-dimensional transport accuracy. The resulting evidence supports minimax dynamics as a major source of severe optimization instability, while leaving the clipped ICNN parameterization, conditioning, approximation, and training budget as plausible additional contributors to the remaining error.
 \end{abstract}
 
 \section{Introduction}
@@ -31,11 +31,11 @@ Computing the Monge map---the transport map $T: \mathbb{R}^D \to \mathbb{R}^D$ m
 
 This project delivers:
 \begin{enumerate}
-    \item A fully modularized PyTorch codebase (\texttt{src/}) protected by 46 automated unit tests (\texttt{tests/}).
+    \item A fully modularized PyTorch codebase (\texttt{src/}) protected by 53 automated unit tests (\texttt{tests/}).
     \item Directional consistency between source distributions ($\mu$), target distributions ($\nu$), forward maps ($T = \nabla f$), and conjugate inverse maps ($S = \nabla g$).
     \item High-dimensional evaluation on the official NeurIPS 2021 Korotin \texttt{Mix3ToMix10} benchmark ($D \in \{2, 4, 8, 16, 32\}$).
     \item Audited quantitative optimization telemetry capturing loss and gradient trajectories for both player potentials ($f$ and $g$).
-    \item Controlled failure-mode isolation experiments at $D=16$ evaluating network width and inner maximization scheduling.
+    \item Controlled failure-mode isolation experiments evaluating width, an oracle paired-map objective, and unequal player learning rates.
 \end{enumerate}
 
 \section{Theoretical Framework \& Mathematical Formulations}
@@ -82,7 +82,7 @@ The codebase is structured into reusable, decoupled Python modules under \texttt
     \item \texttt{src/metrics.py}: Implements \texttt{compute\_official\_l2\_uvp} measuring L2 Unexplained Variance Percentage and Cosine Similarity.
     \item \texttt{src/benchmark.py}: Dynamic benchmark loader supporting environment-configurable paths (\texttt{WASSERSTEIN\_BENCHMARK\_PATH}).
 \end{itemize}
-The module is protected by **46 automated unit tests** in \texttt{tests/}.
+The module is protected by \textbf{53 automated unit tests} in \texttt{tests/}.
 
 \subsection{Telemetry Instrumentation Audit Verification}
 Prior to analyzing gradient trajectory metrics, the solver's instrumentation in \texttt{src/solver.py} was audited:
@@ -113,7 +113,7 @@ Using official Korotin \texttt{Mix3ToMix10} benchmark checkpoints, I conducted a
 \textbf{Dim ($D$)} & \textbf{L2-UVP (\%)} & \textbf{Cosine Sim} & \textbf{L2 Error} & \textbf{$f$-Loss (init $\to$ final)} & \textbf{$g$-Loss (init $\to$ final)} & \textbf{$\|\nabla f\|$ (peak)} & \textbf{$\|\nabla g\|$ (peak)} & \textbf{Time (s)} \\
 \midrule
 2  & \textbf{5.32\%}  & \textbf{0.8626} & \textbf{0.1057} & $6.46 \to 1.71$  & $-4.20 \to 8.82$   & 10.80  & 14.96 & 152.8 s \\
-4  & \textbf{12.64\%} & 0.8422          & 0.5055          & $5.33 \to 3.32$  & $-4.61 \to 32.93$  & 5.88   & 0.08  & 135.4 s \\
+4  & \textbf{12.64\%} & 0.8422          & 0.5055          & $5.33 \to 3.32$  & $-4.61 \to 32.93$  & 29.18  & 12.87 & 135.4 s \\
 8  & \textbf{19.70\%} & 0.8238          & 1.5761          & $7.21 \to 6.11$  & $-6.15 \to 68.84$  & 317.69 & 27.74 & 138.6 s \\
 16 & \textbf{37.76\%} & 0.7731          & 6.0410          & $6.62 \to 10.71$ & $-5.91 \to 160.36$ & 2685.76& 197.81& 140.8 s \\
 32 & \textbf{50.80\%} & 0.7644          & 16.2556         & $9.11 \to 16.55$ & $-8.03 \to 300.40$ & 12999.47& 919.33& 158.4 s \\
@@ -167,18 +167,66 @@ Inner 50   & $1 \times 10^{-3}$   & 50 & 36.85\% & 0.7722 & $1282.71 \pm 19848.0
 
 \textbf{Finding}: Increasing the number of inner maximization steps reduced the final gradient norm at iteration 1999 ($13.85 \to 6.39$) and produced a modest improvement in transport accuracy at 20 inner steps ($36.04\%$). However, the corresponding increase in gradient variance ($123.86 \to 19,848.02$) indicates that additional inner updates do not uniformly stabilize the optimization trajectory. At 50 inner steps, transport accuracy deteriorated slightly despite a lower final gradient norm.
 
+\subsection{Experiment C: Oracle Supervised Regression}
+The official benchmark provides the forward map $T^*(x)=\texttt{benchmark.map\_fwd}(x)$. This diagnostic retains the clipped 3$\times$128 Softplus ICNN but removes $g$, alternating updates, and inner maximization. It trains $f$ directly with $\operatorname{MSE}(\nabla_x f(x),T^*(x))$.
+
+\begin{table}[h]
+\centering
+\caption{Oracle regression diagnostic versus the matched minimax baseline.}
+\label{tab:oracle}
+\begin{tabular}{ccccccc}
+\toprule
+\textbf{$D$} & \textbf{Training} & \textbf{L2-UVP (\%)} & \textbf{Cosine} & \textbf{L2 Error} & \textbf{Peak $f$-grad} & \textbf{NaN/Inf} \\
+\midrule
+16 & Minimax baseline & 37.76 & 0.7731 & 6.0410 & 2685.76 & False \\
+16 & Oracle MSE       & \textbf{29.14} & \textbf{0.8249} & \textbf{4.6299} & \textbf{1.08} & False \\
+32 & Minimax baseline & 50.80 & 0.7644 & 16.2556 & 12999.47 & False \\
+32 & Oracle MSE       & \textbf{42.59} & \textbf{0.8083} & \textbf{13.6303} & \textbf{1.39} & False \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Finding}: Direct supervision gives finite, stable trajectories and improves the official metrics at both dimensions. The remaining oracle error means that the experiment does not clear the ICNN parameterization or clipping of all responsibility for the high-dimensional gap.
+
+\subsection{Experiment D: Unequal Player Learning Rates}
+All settings are fixed to the corresponding baseline except the Adam learning rate for $g$. The reported $g$ quantity is its player objective, not a duality gap. Peak norms are maxima over the stored parameter-gradient telemetry; one $g$ norm is recorded on the final inner $g$ update of each outer iteration.
+
+\begin{table}[h]
+\centering
+\caption{Unequal player learning-rate experiment.}
+\label{tab:unequal_lr}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{ccccccccc}
+\toprule
+\textbf{$D$} & \textbf{$f$ LR} & \textbf{$g$ LR} & \textbf{L2-UVP (\%)} & \textbf{Cosine} & \textbf{L2 Error} & \textbf{Peak $f$-grad} & \textbf{Peak $g$-grad} & \textbf{NaN/Inf} \\
+\midrule
+16 & $10^{-3}$ & $10^{-3}$ & 37.64 & 0.7683 & 6.0141 & 2685.76 & 197.81 & False \\
+16 & $10^{-3}$ & $5\times10^{-4}$ & 37.25 & 0.7707 & 5.9519 & 453.32 & 73.29 & False \\
+16 & $10^{-3}$ & $2.5\times10^{-4}$ & \textbf{37.23} & \textbf{0.7726} & \textbf{5.9489} & \textbf{142.32} & \textbf{45.43} & False \\
+32 & $10^{-3}$ & $10^{-3}$ & 51.20 & 0.7702 & 16.4573 & 12999.47 & 919.33 & False \\
+32 & $10^{-3}$ & $5\times10^{-4}$ & \textbf{50.52} & \textbf{0.7738} & \textbf{16.2398} & 1663.67 & 229.27 & False \\
+32 & $10^{-3}$ & $2.5\times10^{-4}$ & 52.58 & 0.7669 & 16.9012 & \textbf{325.09} & \textbf{110.23} & False \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\textbf{Finding}: Slowing $g$ substantially suppresses gradient spikes at both dimensions, but accuracy is not monotonic in stability. The D=32 4$\times$ slower configuration is the most stable and the least accurate among the three controlled D=32 runs. These are single-seed results with stochastic official evaluation, so the small L2-UVP differences require replication before statistical claims are made.
+
 \section{Detailed Optimization Dynamics Discussion}
 
 The quantitative trajectory telemetry allows us to evaluate the high-dimensional degradation mechanisms:
 
 \begin{enumerate}
-    \item \textbf{Transient Gradient Norm Spikes}: Peak gradient norms for player $f$ increase rapidly with dimension---from $10.80$ at $D=2$ to $2,685.76$ at $D=16$ and $12,999.47$ at $D=32$. Peak conjugate gradient norms for player $g$ similarly scale from $14.96$ (2D) to $919.33$ (32D).
-    \item \textbf{Growth of the $g$-Player Objective}: The $g$-player objective magnitude grows monotonically from $8.82$ in 2D to $300.40$ in 32D, consistent with an increasingly difficult inner maximization as dimension grows.
+    \item \textbf{Transient Gradient Norm Spikes}: Peak parameter-gradient norms for player $f$ increase rapidly with dimension---from $10.80$ at $D=2$ to $2,685.76$ at $D=16$ and $12,999.47$ at $D=32$. The $g$-player gradient norm is separately measured on the final inner $g$ update of each outer iteration.
+    \item \textbf{Growth of the $g$-Player Objective}: The raw $g$-player objective grows from $8.82$ in 2D to $300.40$ in 32D, consistent with an increasingly difficult inner maximization. This quantity is not interpreted as a duality gap.
     \item \textbf{Outer Loss Trajectory Divergence}: At $D=16$ and $D=32$, $f$-loss increases during optimization ($6.62 \to 10.71$ in 16D; $9.11 \to 16.55$ in 32D, an 82\% increase). The solver moves away from initial potential configurations.
-    \item \textbf{Effect of Inner Maximization Scheduling}: Increasing inner steps from 10 to 50 provides potential $g$ with more optimization steps per $f$ step. While this lowers final step gradient norms at iteration 1999, intermediate iterations experience massive transient variance (standard deviation of $\|\nabla_\theta L_f\|$ reaching $\pm 19,848.02$), and transport accuracy remains constrained at $\sim 36.8\%$ L2-UVP.
+    \item \textbf{Stability versus Accuracy}: Oracle regression removes the large spikes and improves transport metrics, while slow-$g$ minimax updates suppress spikes by up to 97.5\% at D=32. Yet the most stable D=32 slow-$g$ run has the worst L2-UVP. Gradient stabilization is therefore not by itself sufficient to recover high-dimensional accuracy.
 \end{enumerate}
 
 \section{Conclusion}
-Under the tested architecture, training budget, and minimax optimization settings, transport accuracy degrades substantially with dimension. This degradation is strongly associated with increasingly unstable minimax optimization dynamics, as evidenced by rapidly growing transient gradient norms and growth of the $g$-player objective.
+Under the tested architecture, training budget, and minimax optimization settings, transport accuracy degrades substantially with dimension. The combined width, oracle, and unequal-learning-rate diagnostics provide strong empirical evidence that minimax dynamics are a major contributor to severe high-dimensional gradient instability. They do not prove that instability is the sole cause of degraded transport accuracy: the oracle experiment remains materially inaccurate despite stable gradients, and the most stable unequal-LR configuration at D=32 is not the most accurate.
+
+The next research decision should be made with the advisor: either evaluate one carefully specified minimax stabilizer (such as a gradient penalty or EMA) with repeated seeds, or investigate an alternative convex-potential parameterization. The present evidence does not support claiming that the minimax game alone explains the high-dimensional error.
 
 \end{document}

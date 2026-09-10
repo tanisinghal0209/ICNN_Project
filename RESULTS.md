@@ -20,13 +20,14 @@ Prior to presenting telemetry results, the gradient norm instrumentation in `src
 
 ---
 
-## 2. Dimensionality Scaling Telemetry ($D \in \{2, 8, 16, 32\}$)
+## 2. Dimensionality Scaling Telemetry ($D \in \{2, 4, 8, 16, 32\}$)
 
 **Configuration:** Fixed nominal parameters ($N=2000$ iters, batch 256, hidden $128 \times 3$, lr $1\text{e-}3$, inner iters 10, softplus, seed 0).
 
 | D | L2-UVP | Cosine Sim | L2 Error | $f\_loss$ (init $\to$ final) | $g\_loss$ (init $\to$ final) | $\|\nabla_\theta L_f\|$ (init $\to$ peak $\to$ final) | $\|\nabla_\phi L_g\|$ (init $\to$ peak $\to$ final) | Params ($f$) | Time |
 |:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|
 | **2** | **5.32%** | **0.8626** | **0.106** | $6.46 \to 1.71$ | $-4.20 \to 8.82$ | $10.80 \to 10.80 \to 0.98$ | $14.96 \to 14.96 \to 0.02$ | 34,051 | 152.8s |
+| **4** | **12.64%** | **0.8422** | **0.505** | $5.33 \to 3.32$ | $-4.61 \to 32.93$ | $5.88 \to 29.18 \to 1.32$ | $12.87 \to 12.87 \to 0.08$ | 34,821 | 135.4s |
 | **8** | **19.70%** | **0.8238** | **1.576** | $7.21 \to 6.11$ | $-6.15 \to 68.84$ | $4.48 \to 317.69 \to 2.57$ | $16.72 \to 27.74 \to 0.06$ | 36,361 | 138.6s |
 | **16** | **37.76%** | **0.7731** | **6.041** | $6.62 \to 10.71$ | $-5.91 \to 160.36$ | $2.98 \to 2685.76 \to 13.85$ | $13.19 \to 197.81 \to 1.54$ | 39,441 | 140.8s |
 | **32** | **50.80%** | **0.7644** | **16.256** | $9.11 \to 16.55$ | $-8.03 \to 300.40$ | $4.03 \to 12999.47 \to 32.24$ | $18.60 \to 919.33 \to 0.95$ | 45,601 | 158.4s |
@@ -78,24 +79,60 @@ Increasing the number of inner maximization steps reduced the final gradient nor
 
 ---
 
-## 5. Master Conclusions & Summary Table
+## 5. Experiment C: Oracle Supervised Regression (No Two-Player Game)
+
+This control retains the 3$\times$128 Softplus ICNN and recurrent-weight clipping, but trains only $f$ with $\operatorname{MSE}(\nabla_x f(x), T^*(x))$ using `benchmark.map_fwd(x)` as the target. It has no $g$ network, alternating updates, or inner maximization.
+
+| D | Training objective | L2-UVP | Cosine | L2 Error | Peak $f$ parameter-gradient norm | NaN/Inf |
+|:--|:--|:--|:--|:--|:--|:--|
+| 16 | Minimax baseline | 37.76% | 0.7731 | 6.0410 | 2685.76 | False |
+| 16 | Oracle MSE | **29.14%** | **0.8249** | **4.6299** | **1.08** | False |
+| 32 | Minimax baseline | 50.80% | 0.7644 | 16.2556 | 12999.47 | False |
+| 32 | Oracle MSE | **42.59%** | **0.8083** | **13.6303** | **1.39** | False |
+
+The paired objective is dramatically more stable and improves the official metrics at both dimensions. Its L2-UVP remains substantial, so this is evidence that the minimax game is a major instability source, not evidence that the ICNN parameterization is otherwise unconstrained.
+
+---
+
+## 6. Experiment D: Unequal Player Learning Rates
+
+At fixed architecture, batch size, training budget, clipping, seed, benchmark, and evaluation protocol, only the $g$-player learning rate is changed. Peak gradients are maxima over the recorded parameter-gradient norms. The $g$ objective is a player objective, not a duality gap.
+
+| D | $f$ LR | $g$ LR | L2-UVP | Cosine | Peak $f$-grad | Peak $g$-grad | NaN/Inf |
+|:--|:--|:--|:--|:--|:--|:--|:--|
+| 16 | 1e-3 | 1e-3 | 37.64% | 0.7683 | 2685.76 | 197.81 | False |
+| 16 | 1e-3 | 5e-4 | 37.25% | 0.7707 | 453.32 | 73.29 | False |
+| 16 | 1e-3 | 2.5e-4 | **37.23%** | **0.7726** | **142.32** | **45.43** | False |
+| 32 | 1e-3 | 1e-3 | 51.20% | 0.7702 | 12999.47 | 919.33 | False |
+| 32 | 1e-3 | 5e-4 | **50.52%** | **0.7738** | 1663.67 | 229.27 | False |
+| 32 | 1e-3 | 2.5e-4 | 52.58% | 0.7669 | **325.09** | **110.23** | False |
+
+Reducing $g$'s learning rate reliably suppresses gradient spikes, but does not reliably recover transport accuracy. At D=32, the 4$\times$ slower $g$ configuration is the most stable and the least accurate of the three controlled runs. The small metric changes come from single-seed, stochastic official evaluation runs and should not be over-interpreted.
+
+---
+
+## 7. Consolidated Interpretation
 
 | D | L2-UVP (%) | Cosine Sim | Peak $\|\nabla_\theta L_f\|$ | Final $f\_loss$ | Final $g\_loss$ | Runtime (s) |
 |:--|:--|:--|:--|:--|:--|:--|
 | **2** | **5.32%** | **0.8626** | 10.80 | 1.71 | 8.82 | 152.8 s |
-| **4** | **12.64%** | **0.8422** | 5.88 | 3.32 | 32.93 | 135.4 s |
+| **4** | **12.64%** | **0.8422** | 29.18 | 3.32 | 32.93 | 135.4 s |
 | **8** | **19.70%** | **0.8238** | 317.69 | 6.11 | 68.84 | 138.6 s |
 | **16** | **37.76%** | **0.7731** | 2685.76 | 10.71 | 160.36 | 140.8 s |
 | **32** | **50.80%** | **0.7644** | 12999.47 | 16.55 | 300.40 | 158.4 s |
 
 **Defensible Summary Statement:**
-The observed degradation with increasing dimension is strongly associated with increasingly unstable minimax optimization dynamics, as evidenced by rapidly growing transient gradient norms, increasing $g$-player objective magnitude, and deterioration of the learned transport map.
+The experiments provide strong empirical evidence that minimax dynamics are a major contributor to severe high-dimensional gradient instability. The oracle control and unequal-learning-rate interventions also show that reducing instability alone is insufficient to recover transport accuracy consistently. The residual oracle error leaves the convex ICNN parameterization, clipping, conditioning, approximation, and finite training budget as unresolved contributors.
 
 ---
 
-## Output Directories
+## 8. Output Directories
 
 - Baseline Sweep: [`experiments/high_dimensional/`](file:///Users/tanishasinghal/Downloads/ICNN_Project/experiments/high_dimensional/)
 - Expressivity Sweep: [`experiments/ablation_expressivity_d16/`](file:///Users/tanishasinghal/Downloads/ICNN_Project/experiments/ablation_expressivity_d16/)
 - Optimization Sweep: [`experiments/ablation_optimization_d16/`](file:///Users/tanishasinghal/Downloads/ICNN_Project/experiments/ablation_optimization_d16/)
 - Telemetry Trajectory Plots: [`experiments/telemetry_analysis/`](file:///Users/tanishasinghal/Downloads/ICNN_Project/experiments/telemetry_analysis/)
+- Oracle control: [`experiments/oracle_regression/`](experiments/oracle_regression/)
+- Unequal-LR D=16: [`experiments/stabilization_unequal_lr_d16/`](experiments/stabilization_unequal_lr_d16/)
+- Unequal-LR D=32: [`experiments/stabilization_unequal_lr_d32/`](experiments/stabilization_unequal_lr_d32/)
+- Complete evidence sheet: [`experiments/CONSOLIDATED_SCIENTIFIC_RESULTS.md`](experiments/CONSOLIDATED_SCIENTIFIC_RESULTS.md)

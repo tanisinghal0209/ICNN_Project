@@ -1,0 +1,26 @@
+{
+  "D": 16,
+  "n_iters": 2000,
+  "batch_size": 256,
+  "hidden_dims": [
+    128,
+    128,
+    128
+  ],
+  "activation": "softplus",
+  "optimizer": "Adam",
+  "betas": [
+    0.5,
+    0.9
+  ],
+  "inner_iters": 10,
+  "f_lr": 0.001,
+  "g_lr": 0.00025,
+  "seed": 0,
+  "weight_clipping": "ICNN.Wz weights clamped to >= 0 after each step",
+  "device": "cpu",
+  "benchmark_path": "/Users/tanishasinghal/Downloads/Wasserstein2Benchmark",
+  "benchmark_module": "/Users/tanishasinghal/Downloads/Wasserstein2Benchmark/src/map_benchmark.py",
+  "evaluation_samples": 8192,
+  "variance_samples": 16384
+}

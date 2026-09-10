@@ -9,34 +9,20 @@ A PyTorch implementation and research suite for continuous optimal transport und
 ```text
 ICNN_Project/
 │
-├── configs/                     # YAML/JSON configurations for experiments
-│   ├── baseline.yaml
-│   ├── gaussian_2d.json
-│   ├── mixture_2d.json
-│   └── disconnected_2d.json
-│
-├── experiments/                 # Sweeps, reproductions, and checklists
-│   ├── run_experiment_suite.py  # Run parameter sweeps (depth, width, lr, etc.)
-│   ├── run_paper_reproduction.py# Gaussian-to-Gaussian, multimodal, disconnected support
-│   ├── run_failure_analysis.py  # 5 targeted failure modes
-│   ├── run_scalability_study.py # Measure runtime vs dimension and size
-│   ├── run_korotin_benchmark.py # Integrate and evaluate on Mix3ToMix10 benchmark
-│   ├── generate_report_table.py # Script to compile summary.csv
-│   ├── experiment_checklist.md  # Map requirements to checkpoints/metrics
-│   └── summary.csv              # Main sweeps output table
-│
-├── figures/                     # Generated charts and scalability curves
-├── checkpoints/                 # Saved model weights
-│
-├── icnn.py                      # ICNN and StandardMLP network architectures
-├── losses.py                    # Minimax dual loss implementation
-├── train.py                     # Training loop and CLI entrypoint
-├── data.py                      # Latent VAE samplers
-├── vae.py                       # Convolutional VAE module for MNIST
-│
-├── ICNN_Optimal_Transport_Colab.ipynb # Self-contained Google Colab notebook
-│
+├── src/                         # ICNN, minimax loss, solver, benchmark, metrics
+├── experiments/                 # Saved outputs and reproducible experiment modules
+│   ├── high_dimensional/        # D=2,4,8,16,32 baseline sweep
+│   ├── ablation_expressivity_d16/
+│   ├── oracle_regression/       # Paired-map oracle diagnostic
+│   ├── stabilization_unequal_lr_d16/
+│   ├── stabilization_unequal_lr_d32/
+│   └── CONSOLIDATED_SCIENTIFIC_RESULTS.md
+├── notebooks/
+│   └── ICNN_Optimal_Transport_Colab_FINAL.ipynb
 ├── tests/                       # Unit tests suite
+├── Report.tex                   # LaTeX report
+├── REPORT.md                    # Markdown research report
+├── RESULTS.md                   # Telemetry-focused results note
 └── README.md                    # This document
 ```
 
@@ -62,56 +48,67 @@ python -m unittest discover -s tests
 
 ---
 
-## 4. Running the Experiment Suite
+## 4. Reproducing the High-Dimensional Diagnostic Suite
 
-### 1. Parameter Sweeps & Ablation Studies
-Trains baseline and sweeps over hidden dimensions, layers, learning rates, activation functions, sample sizes, and non-convex MLP comparisons:
-```bash
-python experiments/run_experiment_suite.py
-```
-This updates the consolidated sweep records:
-* JSON: `experiments/summary.json`
-* CSV: `experiments/summary.csv` (Run `python experiments/generate_report_table.py` to compile).
+The official `Wasserstein2Benchmark` clone must be available locally. Set its path once for the current shell:
 
-### 2. Paper Reproduction Distributions
-Trains the three core continuous target mappings from the paper for 2000 iterations to ensure full convergence:
 ```bash
-python experiments/run_paper_reproduction.py
+export WASSERSTEIN_BENCHMARK_PATH=/path/to/Wasserstein2Benchmark
 ```
-* **Gaussian → Gaussian**: Dynamically validates the learned distance against the closed-form analytical $W_2$ metric.
-* **Multimodal Mixture**: Maps a single Gaussian to 8 components on a circle.
-* **Disconnected Support**: Maps separated clusters without intersecting transport paths.
 
-### 3. Failure-Mode Analysis
-Intentionally violates theoretical and optimization assumptions to study degradation:
-```bash
-python experiments/run_failure_analysis.py
-```
-Runs five cases: tiny datasets ($N=50$), removing the convexity constraint (non-convex standard MLP), large learning rate ($\text{lr}=0.1$ causing divergence), high-dimensional mapping ($D=128$), and poor spatial overlap (shift of 15 std deviations).
+The checked-in experiment modules and outputs are:
 
-### 4. Scalability Sweeps
-Measures computation time scaling against dimension and dataset size:
 ```bash
-python experiments/run_scalability_study.py
-```
-Generates scalability charts under `figures/`:
-* `figures/scalability_dim_vs_time.png`
-* `figures/scalability_size_vs_time.png`
+# Check the official benchmark integration.
+python experiments/verify_benchmarks.py
 
-### 5. Korotin Benchmark Integration
-Links dynamically with the `Wasserstein2Benchmark` codebase (found in Downloads) to evaluate our PyTorch potentials against the Mix3ToMix10 mixture problems:
-```bash
-python experiments/run_korotin_benchmark.py
+# Baseline Mix3ToMix10 sweep: D=4,8,16,32.
+python experiments/run_high_d_sweep.py
+
+# Controlled D=16 capacity and inner-iteration ablations.
+python experiments/run_experiment_a_width.py
+python experiments/run_experiment_b_optimization.py
+
+# Oracle paired-map control: D=16 and D=32.
+python experiments/run_oracle_regression.py
+
+# Unequal player learning-rate control, one dimension at a time.
+python experiments/run_experiment_d_unequal_lr.py --dimension 16
+python experiments/run_experiment_d_unequal_lr.py --dimension 32
 ```
-Evaluates:
-* **L2-UVP (L2 Unexplained Variance Percentage)** (Goal: $<10\%$ in 2D)
-* **Cosine Similarity** of displacement vectors (Goal: $>0.90$ in 2D)
+
+Each new diagnostic writes to its own output directory and preserves the existing baseline results. The official metrics are L2-UVP, L2 error, and cosine similarity of the learned forward map $\hat T(x)=\nabla f(x)$ against `benchmark.map_fwd(x)`.
 
 ---
 
-## 5. Google Colab Notebook
+## 5. Completed High-Dimensional Diagnostics
 
-For interactive cloud training, use the self-contained [ICNN_Optimal_Transport_Colab.ipynb](file:///Users/tanishasinghal/Downloads/ICNN_Project/ICNN_Optimal_Transport_Colab.ipynb) notebook. 
+The current research results are consolidated in [the scientific evidence sheet](experiments/CONSOLIDATED_SCIENTIFIC_RESULTS.md). The controlled findings are:
+
+| Diagnostic | Main result |
+|---|---|
+| Baseline sweep | L2-UVP rises from 5.32% at D=2 to 50.80% at D=32; recorded peak `f` parameter-gradient norm rises from 10.80 to 12,999.47. |
+| D=16 width ablation | Increasing width from 64 to 512 does not systematically improve L2-UVP (36.49%--41.01%). |
+| Oracle map regression | Removing the two-player game yields finite, small gradient peaks (1.08 at D=16; 1.39 at D=32) and better, though still imperfect, transport metrics. |
+| Unequal player learning rates | Slowing `g` strongly suppresses gradient spikes at D=16/D=32, but accuracy changes are small and non-monotonic. |
+
+These results provide strong empirical evidence that minimax dynamics are a major contributor to the observed gradient instability. They do not establish that the minimax game is the sole source of high-dimensional transport error: the remaining oracle-regression error leaves the clipped ICNN parameterization, conditioning, and finite training budget as open factors.
+
+Reproduce the completed diagnostic modules with:
+
+```bash
+python experiments/run_oracle_regression.py
+python experiments/run_experiment_d_unequal_lr.py --dimension 16
+python experiments/run_experiment_d_unequal_lr.py --dimension 32
+```
+
+The diagnostic modules use the official benchmark path configured through `WASSERSTEIN_BENCHMARK_PATH`; they do not overwrite baseline results.
+
+---
+
+## 6. Google Colab Notebook
+
+For interactive cloud training, use [notebooks/ICNN_Optimal_Transport_Colab_FINAL.ipynb](notebooks/ICNN_Optimal_Transport_Colab_FINAL.ipynb).
 * Upload this notebook to your Google Drive.
 * Open in Google Colab, choose GPU or CPU execution, and run the cells from top to bottom.
-* It trains the baseline, mixture, disconnected support, and MLP failure configurations, displaying all loss curves, scatter plots, and vector field diagrams inline.
+* It contains the validated benchmark workflow and a results-only section documenting the completed high-dimensional diagnostics. Local saved results remain the authoritative numerical record.

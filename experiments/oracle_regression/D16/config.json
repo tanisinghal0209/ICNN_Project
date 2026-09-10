@@ -1,0 +1,26 @@
+{
+  "D": 16,
+  "n_iters_requested": 2000,
+  "batch_size": 256,
+  "hidden_dims": [
+    128,
+    128,
+    128
+  ],
+  "activation": "softplus",
+  "optimizer": "Adam",
+  "lr": 0.001,
+  "betas": [
+    0.5,
+    0.9
+  ],
+  "weight_clipping": "ICNN.Wz weights clamped to >= 0 after each step",
+  "seed": 0,
+  "device": "cpu",
+  "benchmark_path": "/Users/tanishasinghal/Downloads/Wasserstein2Benchmark",
+  "benchmark_module": "/Users/tanishasinghal/Downloads/Wasserstein2Benchmark/src/map_benchmark.py",
+  "oracle_target": "benchmark.map_fwd(x, nograd=True)",
+  "transport_prediction": "grad_x f(x), create_graph=True",
+  "evaluation_samples": 8192,
+  "variance_samples": 16384
+}

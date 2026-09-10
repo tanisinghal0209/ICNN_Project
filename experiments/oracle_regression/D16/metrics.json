@@ -1,0 +1,19 @@
+{
+  "D": 16,
+  "training_objective": "MSE(grad_x f(x), benchmark.map_fwd(x))",
+  "L2-UVP": 29.139144897460938,
+  "Cosine Similarity": 0.8249353170394897,
+  "L2 Error": 4.629892826080322,
+  "final_oracle_mse": 0.28295207023620605,
+  "peak_f_gradient_norm": 1.0765315815664909,
+  "mean_f_gradient_norm": 0.5085424527669006,
+  "std_f_gradient_norm": 0.1211868299026865,
+  "final_f_gradient_norm": 0.43814627514911764,
+  "final_f_parameter_norm": 15.500657089529373,
+  "parameter_count_f": 39441,
+  "training_time": 10.10780091676861,
+  "iterations_per_second": 197.86697586040162,
+  "NaN/Inf": false,
+  "completed_iterations": 2000,
+  "baseline_gradient_comparison_available": true
+}
