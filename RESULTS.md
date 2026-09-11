@@ -26,11 +26,11 @@ Prior to presenting telemetry results, the gradient norm instrumentation in `src
 
 | D | L2-UVP | Cosine Sim | L2 Error | $f\_loss$ (init $\to$ final) | $g\_loss$ (init $\to$ final) | $\|\nabla_\theta L_f\|$ (init $\to$ peak $\to$ final) | $\|\nabla_\phi L_g\|$ (init $\to$ peak $\to$ final) | Params ($f$) | Time |
 |:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|
-| **2** | **5.32%** | **0.8626** | **0.106** | $6.46 \to 1.71$ | $-4.20 \to 8.82$ | $10.80 \to 10.80 \to 0.98$ | $14.96 \to 14.96 \to 0.02$ | 34,051 | 152.8s |
-| **4** | **12.64%** | **0.8422** | **0.505** | $5.33 \to 3.32$ | $-4.61 \to 32.93$ | $5.88 \to 29.18 \to 1.32$ | $12.87 \to 12.87 \to 0.08$ | 34,821 | 135.4s |
-| **8** | **19.70%** | **0.8238** | **1.576** | $7.21 \to 6.11$ | $-6.15 \to 68.84$ | $4.48 \to 317.69 \to 2.57$ | $16.72 \to 27.74 \to 0.06$ | 36,361 | 138.6s |
-| **16** | **37.76%** | **0.7731** | **6.041** | $6.62 \to 10.71$ | $-5.91 \to 160.36$ | $2.98 \to 2685.76 \to 13.85$ | $13.19 \to 197.81 \to 1.54$ | 39,441 | 140.8s |
-| **32** | **50.80%** | **0.7644** | **16.256** | $9.11 \to 16.55$ | $-8.03 \to 300.40$ | $4.03 \to 12999.47 \to 32.24$ | $18.60 \to 919.33 \to 0.95$ | 45,601 | 158.4s |
+| **2** | **5.32%** | **0.8626** | **0.106** | $6.37 \to 1.78$ | $-4.23 \to 8.95$ | $10.90 \to 10.90 \to 0.98$ | $15.11 \to 15.11 \to 0.02$ | 34,051 | 142.5s |
+| **4** | **12.70%** | **0.8010** | **0.507** | $5.33 \to 3.32$ | $-4.61 \to 32.92$ | $5.88 \to 29.18 \to 1.32$ | $12.87 \to 12.87 \to 0.08$ | 34,821 | 142.8s |
+| **8** | **19.78%** | **0.8336** | **1.581** | $7.21 \to 6.11$ | $-6.15 \to 68.94$ | $4.48 \to 317.69 \to 2.58$ | $16.72 \to 27.74 \to 0.06$ | 36,361 | 153.0s |
+| **16** | **37.64%** | **0.7683** | **6.014** | $6.62 \to 10.71$ | $-5.91 \to 160.36$ | $2.98 \to 2685.76 \to 13.85$ | $13.19 \to 197.81 \to 1.54$ | 39,441 | 158.8s |
+| **32** | **51.20%** | **0.7702** | **16.457** | $9.11 \to 16.55$ | $-8.03 \to 300.40$ | $4.03 \to 12999.47 \to 32.24$ | $18.60 \to 919.33 \to 0.95$ | 45,601 | 157.9s |
 
 ---
 
@@ -38,13 +38,13 @@ Prior to presenting telemetry results, the gradient norm instrumentation in `src
 
 ### Quantitative Observations Across Dimensions ($D=2 \to 32$)
 1. **Outer Loss ($f\_loss$) Trajectory**:
-   - At $D=2$, $f\_loss$ monotonically decreases from $6.46$ to $1.71$ (clean convergence).
+   - At $D=2$, $f\_loss$ monotonically decreases from $6.37$ to $1.78$ (clean convergence).
    - At $D=16$ and $D=32$, $f\_loss$ **increases during optimization** ($6.62 \to 10.71$ in 16D, and $9.11 \to 16.55$ in 32D, an 82% increase). The solver moves away from initialization rather than minimizing cost.
 2. **Growth of the $g$-Player Objective**:
-   - The $g$-player objective magnitude grows substantially as dimension increases, scaling from $8.82$ in 2D to $300.40$ in 32D. This increasing magnitude is consistent with an increasingly difficult inner maximization as dimension grows.
+   - The $g$-player objective magnitude grows substantially as dimension increases, scaling from $8.95$ in 2D to $300.40$ in 32D. This increasing magnitude is consistent with an increasingly difficult inner maximization as dimension grows.
 3. **Rapidly Increasing Peak Gradient Norms**:
    - Peak gradient norms $\|\nabla_\theta L_f\|$ exhibit a rapidly increasing trend with dimension, reaching **2,685.76** in 16D and **12,999.47** in 32D during training iterations, demonstrating transient optimization shocks.
-   - Peak conjugate gradient norms $\|\nabla_\phi L_g\|$ similarly scale from $14.96$ in 2D to $919.33$ in 32D.
+   - Peak conjugate gradient norms $\|\nabla_\phi L_g\|$ similarly scale from $15.11$ in 2D to $919.33$ in 32D.
 
 ---
 
@@ -85,9 +85,9 @@ This control retains the 3$\times$128 Softplus ICNN and recurrent-weight clippin
 
 | D | Training objective | L2-UVP | Cosine | L2 Error | Peak $f$ parameter-gradient norm | NaN/Inf |
 |:--|:--|:--|:--|:--|:--|:--|
-| 16 | Minimax baseline | 37.76% | 0.7731 | 6.0410 | 2685.76 | False |
+| 16 | Minimax baseline | 37.64% | 0.7683 | 6.0141 | 2685.76 | False |
 | 16 | Oracle MSE | **29.14%** | **0.8249** | **4.6299** | **1.08** | False |
-| 32 | Minimax baseline | 50.80% | 0.7644 | 16.2556 | 12999.47 | False |
+| 32 | Minimax baseline | 51.20% | 0.7702 | 16.4573 | 12999.47 | False |
 | 32 | Oracle MSE | **42.59%** | **0.8083** | **13.6303** | **1.39** | False |
 
 The paired objective is dramatically more stable and improves the official metrics at both dimensions. Its L2-UVP remains substantial, so this is evidence that the minimax game is a major instability source, not evidence that the ICNN parameterization is otherwise unconstrained.
@@ -115,11 +115,11 @@ Reducing $g$'s learning rate reliably suppresses gradient spikes, but does not r
 
 | D | L2-UVP (%) | Cosine Sim | Peak $\|\nabla_\theta L_f\|$ | Final $f\_loss$ | Final $g\_loss$ | Runtime (s) |
 |:--|:--|:--|:--|:--|:--|:--|
-| **2** | **5.32%** | **0.8626** | 10.80 | 1.71 | 8.82 | 152.8 s |
-| **4** | **12.64%** | **0.8422** | 29.18 | 3.32 | 32.93 | 135.4 s |
-| **8** | **19.70%** | **0.8238** | 317.69 | 6.11 | 68.84 | 138.6 s |
-| **16** | **37.76%** | **0.7731** | 2685.76 | 10.71 | 160.36 | 140.8 s |
-| **32** | **50.80%** | **0.7644** | 12999.47 | 16.55 | 300.40 | 158.4 s |
+| **2** | **5.32%** | **0.8626** | 10.90 | 1.78 | 8.95 | 142.5 s |
+| **4** | **12.70%** | **0.8010** | 29.18 | 3.32 | 32.92 | 142.8 s |
+| **8** | **19.78%** | **0.8336** | 317.69 | 6.11 | 68.94 | 153.0 s |
+| **16** | **37.64%** | **0.7683** | 2685.76 | 10.71 | 160.36 | 158.8 s |
+| **32** | **51.20%** | **0.7702** | 12999.47 | 16.55 | 300.40 | 157.9 s |
 
 **Defensible Summary Statement:**
 The experiments provide strong empirical evidence that minimax dynamics are a major contributor to severe high-dimensional gradient instability. The oracle control and unequal-learning-rate interventions also show that reducing instability alone is insufficient to recover transport accuracy consistently. The residual oracle error leaves the convex ICNN parameterization, clipping, conditioning, approximation, and finite training budget as unresolved contributors.

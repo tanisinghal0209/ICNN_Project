@@ -3,8 +3,18 @@
     "L2-UVP": 5.3153300285339355,
     "Cosine Similarity": 0.862567126750946,
     "L2 Error": 0.10568311810493469,
-    "training_time": 152.83333897590637,
-    "final_f_loss": 1.7751388549804688
+    "training_time": 142.54304695129395,
+    "initial_f_loss": 6.365176200866699,
+    "final_f_loss": 1.7751388549804688,
+    "initial_g_loss": -4.233035564422607,
+    "final_g_loss": 8.952905654907227,
+    "peak_f_gradient_norm": 10.897986589652971,
+    "final_f_gradient_norm": 0.9752821282261754,
+    "peak_g_gradient_norm": 15.109541330871728,
+    "final_g_gradient_norm": 0.021335587100589568,
+    "final_f_parameter_norm": 15.877522428584662,
+    "final_g_parameter_norm": 55.198465744156486,
+    "NaN/Inf": false
   },
   "notebook_reference": {
     "L2-UVP": 5.1044,

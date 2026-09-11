@@ -131,9 +131,24 @@ def main():
     print(f"\nBenchmark module source (verified):")
     print(f"  {module_info['map_benchmark_file']}")
 
-    # 5. Save results
+    # 5. Save metrics and full telemetry so the D=2 baseline can be
+    # consolidated without hand-written values in later reports.
+    telemetry = {
+        "initial_f_loss": history["f_loss"][0],
+        "final_f_loss": history["f_loss"][-1],
+        "initial_g_loss": history["g_loss"][0],
+        "final_g_loss": history["g_loss"][-1],
+        "peak_f_gradient_norm": max(history["f_grad_norm"]),
+        "final_f_gradient_norm": history["f_grad_norm"][-1],
+        "peak_g_gradient_norm": max(history["g_grad_norm"]),
+        "final_g_gradient_norm": history["g_grad_norm"][-1],
+        "final_f_parameter_norm": history["f_param_norm"][-1],
+        "final_g_parameter_norm": history["g_param_norm"][-1],
+        "NaN/Inf": any(history["has_nan"]),
+    }
+    parameter_count = sum(p.numel() for p in f.parameters())
     out = {
-        "modular_run": {**metrics, "training_time": training_time, "final_f_loss": final_f_loss},
+        "modular_run": {**metrics, "training_time": training_time, **telemetry},
         "notebook_reference": NOTEBOOK_REFERENCE,
         "difference": {k: metrics[k] - NOTEBOOK_REFERENCE[k] for k in ['L2-UVP', 'Cosine Similarity', 'L2 Error']},
         "benchmark_module": module_info['map_benchmark_file'],
@@ -147,7 +162,49 @@ def main():
     out_path.parent.mkdir(exist_ok=True)
     with open(out_path, "w") as fh:
         json.dump(out, fh, indent=2)
+
+    record = {
+        "dimension": DIM,
+        "seed": 0,
+        "n_iters": N_ITERS,
+        "batch_size": BATCH_SIZE,
+        "hidden_dims": list(HIDDEN),
+        "learning_rate": LR,
+        "inner_iters": INNER,
+        **metrics,
+        "training_time": training_time,
+        "parameter_count": parameter_count,
+        "benchmark_repository_path": module_info["repository_root"],
+        "benchmark_module_source": module_info["map_benchmark_file"],
+        "telemetry": telemetry,
+    }
+    record_path = ROOT / "experiments" / "d2_baseline_record.json"
+    with open(record_path, "w") as fh:
+        json.dump(record, fh, indent=2)
+
+    dim_dir = ROOT / "experiments" / "high_dimensional" / "D2"
+    dim_dir.mkdir(parents=True, exist_ok=True)
+    with open(dim_dir / "metrics.json", "w") as fh:
+        json.dump({
+            "D": DIM,
+            **metrics,
+            "final_f_loss": telemetry["final_f_loss"],
+            "final_g_loss": telemetry["final_g_loss"],
+            "f_gradient_norm": telemetry["final_f_gradient_norm"],
+            "g_gradient_norm": telemetry["final_g_gradient_norm"],
+            "parameter_norm": telemetry["final_f_parameter_norm"],
+            "parameter_count": parameter_count,
+            "training_time": training_time,
+            "iterations_per_second": N_ITERS / training_time,
+            "NaN/Inf": telemetry["NaN/Inf"],
+            "completed_iterations": N_ITERS,
+        }, fh, indent=2)
+    with open(dim_dir / "loss_history.json", "w") as fh:
+        json.dump(history, fh, indent=2)
+    with open(dim_dir / "config.json", "w") as fh:
+        json.dump(record, fh, indent=2)
     print(f"\nResults saved to: {out_path}")
+    print(f"D=2 baseline record updated: {record_path}")
     print("=" * 65)
 
 

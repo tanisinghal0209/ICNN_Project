@@ -221,22 +221,24 @@ def main():
         results[str(d)] = metrics_data
         loss_histories[str(d)] = f_loss_hist
 
-    # Include D=2 baseline (read-only — never overwritten)
+    # Include the persisted D=2 regression baseline. Run
+    # ``experiments/d2_regression.py`` first to refresh this record.
     d2_path = ROOT / "experiments" / "d2_baseline_record.json"
     if d2_path.exists():
         with open(d2_path) as fh:
             d2 = json.load(fh)
+        telemetry = d2.get("telemetry", {})
         results["2"] = {
             "D": 2,
             "L2-UVP":               d2["L2-UVP"],
             "Cosine Similarity":    d2["Cosine Similarity"],
             "L2 Error":             d2["L2 Error"],
-            "final_f_loss":         1.7751,
-            "final_g_loss":         0.0,
-            "f_gradient_norm":      0.213,
-            "g_gradient_norm":      0.0,
-            "parameter_norm":       26.5,
-            "parameter_count":      34051,
+            "final_f_loss":         telemetry.get("final_f_loss", 1.7751),
+            "final_g_loss":         telemetry.get("final_g_loss", 0.0),
+            "f_gradient_norm":      telemetry.get("final_f_gradient_norm", 0.213),
+            "g_gradient_norm":      telemetry.get("final_g_gradient_norm", 0.0),
+            "parameter_norm":       telemetry.get("final_f_parameter_norm", 26.5),
+            "parameter_count":      d2.get("parameter_count", 34051),
             "training_time":        d2["training_time"],
             "iterations_per_second": 2000.0 / d2["training_time"],
             "NaN/Inf":              False,

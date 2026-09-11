@@ -35,7 +35,9 @@ ICNN_Project/
    ```bash
    pip install -r requirements.txt
    ```
-   *Required packages*: `torch`, `numpy`, `scipy`, `matplotlib`, `pyyaml`, `pytest`.
+   *Required packages*: `torch`, `torchvision`, `numpy`, `scipy<1.16`, `matplotlib`, `pyyaml`, `pandas`, `scikit-learn`, `Pillow`, `tqdm`, and `pytest`.
+
+   The official benchmark uses the legacy `scipy.linalg.sqrtm(..., disp=False)` API, so SciPy 1.16 or newer is intentionally unsupported.
 
 ---
 
@@ -62,7 +64,8 @@ The checked-in experiment modules and outputs are:
 # Check the official benchmark integration.
 python experiments/verify_benchmarks.py
 
-# Baseline Mix3ToMix10 sweep: D=4,8,16,32.
+# Baseline Mix3ToMix10 regression at D=2, then sweep D=4,8,16,32.
+python experiments/d2_regression.py
 python experiments/run_high_d_sweep.py
 
 # Controlled D=16 capacity and inner-iteration ablations.
@@ -77,7 +80,7 @@ python experiments/run_experiment_d_unequal_lr.py --dimension 16
 python experiments/run_experiment_d_unequal_lr.py --dimension 32
 ```
 
-Each new diagnostic writes to its own output directory and preserves the existing baseline results. The official metrics are L2-UVP, L2 error, and cosine similarity of the learned forward map $\hat T(x)=\nabla f(x)$ against `benchmark.map_fwd(x)`.
+Each runner writes to its own output directory. Re-running a runner replaces files in that runner's directory; use a separate verification clone when you want to preserve the checked-in outputs. The official metrics are L2-UVP, L2 error, and cosine similarity of the learned forward map $\hat T(x)=\nabla f(x)$ against `benchmark.map_fwd(x)`.
 
 ---
 
@@ -87,7 +90,7 @@ The current research results are consolidated in [the scientific evidence sheet]
 
 | Diagnostic | Main result |
 |---|---|
-| Baseline sweep | L2-UVP rises from 5.32% at D=2 to 50.80% at D=32; recorded peak `f` parameter-gradient norm rises from 10.80 to 12,999.47. |
+| Baseline sweep | L2-UVP rises from 5.32% at D=2 to 51.20% at D=32; recorded peak `f` parameter-gradient norm rises from 10.90 to 12,999.47. |
 | D=16 width ablation | Increasing width from 64 to 512 does not systematically improve L2-UVP (36.49%--41.01%). |
 | Oracle map regression | Removing the two-player game yields finite, small gradient peaks (1.08 at D=16; 1.39 at D=32) and better, though still imperfect, transport metrics. |
 | Unequal player learning rates | Slowing `g` strongly suppresses gradient spikes at D=16/D=32, but accuracy changes are small and non-monotonic. |

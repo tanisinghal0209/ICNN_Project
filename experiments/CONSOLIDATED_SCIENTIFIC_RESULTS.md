@@ -12,11 +12,11 @@ All listed runs use the official Mix3ToMix10 benchmark, seed 0, 2,000 iterations
 
 | Study | Configuration | D | Architecture / width | f LR | g LR | Inner | L2-UVP (%) | L2 error | Cosine | Final f-objective | Final g-objective | Peak f-grad | Peak g-grad | Time (s) | NaN/Inf |
 |---|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| Baseline dimension sweep | Baseline | 2 | ICNN 3×128 | 1e-3 | 1e-3 | 10 | 5.3153 | 0.1057 | 0.8626 | 1.7128 | 8.8165 | 10.80 | 14.96 | 152.83 | False |
-| Baseline dimension sweep | Baseline | 4 | ICNN 3×128 | 1e-3 | 1e-3 | 10 | 12.6375 | 0.5055 | 0.8422 | 3.3157 | 32.9294 | 29.18 | 12.87 | 135.35 | False |
-| Baseline dimension sweep | Baseline | 8 | ICNN 3×128 | 1e-3 | 1e-3 | 10 | 19.7014 | 1.5761 | 0.8238 | 6.1122 | 68.8426 | 317.69 | 27.74 | 138.64 | False |
-| Baseline dimension sweep | Baseline | 16 | ICNN 3×128 | 1e-3 | 1e-3 | 10 | 37.7563 | 6.0410 | 0.7731 | 10.7124 | 160.3642 | 2685.76 | 197.81 | 140.82 | False |
-| Baseline dimension sweep | Baseline | 32 | ICNN 3×128 | 1e-3 | 1e-3 | 10 | 50.7988 | 16.2556 | 0.7644 | 16.5547 | 300.3968 | 12999.47 | 919.33 | 158.39 | False |
+| Baseline dimension sweep | Baseline | 2 | ICNN 3×128 | 1e-3 | 1e-3 | 10 | 5.3153 | 0.1057 | 0.8626 | 1.7751 | 8.9529 | 10.90 | 15.11 | 142.54 | False |
+| Baseline dimension sweep | Baseline | 4 | ICNN 3×128 | 1e-3 | 1e-3 | 10 | 12.7019 | 0.5065 | 0.8010 | 3.3156 | 32.9244 | 29.18 | 12.87 | 142.83 | False |
+| Baseline dimension sweep | Baseline | 8 | ICNN 3×128 | 1e-3 | 1e-3 | 10 | 19.7814 | 1.5810 | 0.8336 | 6.1124 | 68.9368 | 317.69 | 27.74 | 153.01 | False |
+| Baseline dimension sweep | Baseline | 16 | ICNN 3×128 | 1e-3 | 1e-3 | 10 | 37.6382 | 6.0141 | 0.7683 | 10.7124 | 160.3642 | 2685.76 | 197.81 | 158.81 | False |
+| Baseline dimension sweep | Baseline | 32 | ICNN 3×128 | 1e-3 | 1e-3 | 10 | 51.1976 | 16.4573 | 0.7702 | 16.5547 | 300.3968 | 12999.47 | 919.33 | 157.90 | False |
 | Capacity ablation | Width 64 | 16 | ICNN 3×64 | 1e-3 | 1e-3 | 10 | 36.7563 | 5.8450 | 0.7745 | 10.5186 | 152.0855 | 6905.90 | 545.54 | 96.97 | False |
 | Capacity ablation | Width 128 | 16 | ICNN 3×128 | 1e-3 | 1e-3 | 10 | 37.6382 | 6.0141 | 0.7683 | 10.7124 | 160.3642 | 2685.76 | 197.81 | 141.19 | False |
 | Capacity ablation | Width 256 | 16 | ICNN 3×256 | 1e-3 | 1e-3 | 10 | 36.4857 | 5.8396 | 0.7769 | 10.9100 | 172.2786 | 231.69 | 57.85 | 203.91 | False |
@@ -30,7 +30,7 @@ All listed runs use the official Mix3ToMix10 benchmark, seed 0, 2,000 iterations
 | Unequal learning rates | G-slower-2x | 32 | ICNN 3×128 | 1e-3 | 5e-4 | 10 | 50.5208 | 16.2398 | 0.7738 | 16.5176 | 296.9798 | 1663.67 | 229.27 | 94.09 | False |
 | Unequal learning rates | G-slower-4x | 32 | ICNN 3×128 | 1e-3 | 2.5e-4 | 10 | 52.5786 | 16.9012 | 0.7669 | 16.2198 | 281.7536 | 325.09 | 110.23 | 95.58 | False |
 
-The D=16/D=32 unequal-LR baseline scores differ slightly from the original sweep scores because official evaluation samples are stochastic. Their final optimisation telemetry is identical to the corresponding baseline-sweep training trajectories. All comparisons of unequal-LR configurations should therefore use their matched baseline rows in this table; all reported studies use one seed.
+The D=16/D=32 unequal-LR baseline rows reproduce the refreshed sweep scores exactly. All comparisons of unequal-LR configurations therefore use matched baseline rows; all reported studies use one seed.
 
 ## Interpretation by hypothesis
 
@@ -42,13 +42,13 @@ It does not prove that the convex function class or clipping is unimportant. The
 
 ### B. Minimax optimisation instability
 
-The baseline sweep shows both worsening transport error and rapidly increasing transient parameter-gradient peaks with dimension: the stored peak `f` norm grows from 10.80 at D=2 to 2,685.76 at D=16 and 12,999.47 at D=32. Removing the two-player game in the oracle control reduces those peaks to 1.08 and 1.39 respectively, while improving each corresponding official transport metric.
+The baseline sweep shows both worsening transport error and rapidly increasing transient parameter-gradient peaks with dimension: the stored peak `f` norm grows from 10.90 at D=2 to 2,685.76 at D=16 and 12,999.47 at D=32. Removing the two-player game in the oracle control reduces those peaks to 1.08 and 1.39 respectively, while improving each corresponding official transport metric.
 
 Slowing the `g` player independently corroborates the stability effect. At D=16, reducing `g_lr` 4× lowers the peak `f` norm from 2,685.76 to 142.32; at D=32 it lowers the peak from 12,999.47 to 325.09. However, accuracy does not improve consistently: the D=32 4× slower configuration is the most stable but has the worst L2-UVP (52.58%) among the D=32 unequal-LR runs. Thus, the results strongly establish that minimax dynamics are a major source of the severe gradient instability, but do not establish that this instability is the sole source of high-dimensional transport error.
 
 ### C. Computational cost
 
-The baseline minimax runs take approximately 135–158 seconds over D=2–32 for the fixed 3×128 architecture; the width sweep takes 97 seconds at width 64 and 301 seconds at width 512. The oracle diagnostic, which removes the second potential and ten inner player updates, takes only 10–12 seconds at D=16/D=32. This identifies minimax alternation and model width as meaningful cost drivers, although these CPU timings are environment-specific and are not hardware-independent complexity measurements.
+The baseline minimax runs take approximately 143–159 seconds over D=2–32 for the fixed 3×128 architecture; the width sweep takes 97 seconds at width 64 and 301 seconds at width 512. The oracle diagnostic, which removes the second potential and ten inner player updates, takes only 10–12 seconds at D=16/D=32. This identifies minimax alternation and model width as meaningful cost drivers, although these CPU timings are environment-specific and are not hardware-independent complexity measurements.
 
 ## What the evidence establishes strongly
 

@@ -11,5 +11,6 @@
   "activation": "softplus",
   "seed": 0,
   "device": "cpu",
-  "benchmark_path": "/Users/tanishasinghal/Downloads/Wasserstein2Benchmark"
+  "benchmark_path": "/Users/tanishasinghal/Downloads/Wasserstein2Benchmark",
+  "benchmark_module": "/Users/tanishasinghal/Downloads/Wasserstein2Benchmark/src/map_benchmark.py"
 }

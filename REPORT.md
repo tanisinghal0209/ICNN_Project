@@ -74,11 +74,11 @@ Prior to drawing conclusions from gradient trajectory metrics, the solver's inst
 
 | Dimension ($D$) | L2-UVP (%) | Cosine Similarity | L2 Error | $f$-Loss (init $\to$ final) | $g$-Loss (init $\to$ final) | Peak $\|\nabla_\theta L_f\|$ | Peak $\|\nabla_\phi L_g\|$ | Time (s) |
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|
-| **D = 2** | **5.3153%** | **0.8626** | **0.1057** | $6.46 \to 1.71$ | $-4.20 \to 8.82$ | 10.80 | 14.96 | 152.83 s |
-| **D = 4** | **12.6375%** | **0.8422** | **0.5055** | $5.33 \to 3.32$ | $-4.61 \to 32.93$ | 29.18 | 12.87 | 135.35 s |
-| **D = 8** | **19.7014%** | **0.8238** | **1.5761** | $7.21 \to 6.11$ | $-6.15 \to 68.84$ | 317.69 | 27.74 | 138.64 s |
-| **D = 16** | **37.7563%** | **0.7731** | **6.0410** | $6.62 \to 10.71$ | $-5.91 \to 160.36$ | **2685.76** | **197.81** | 140.82 s |
-| **D = 32** | **50.7988%** | **0.7644** | **16.2556** | $9.11 \to 16.55$ | $-8.03 \to 300.40$ | **12999.47** | **919.33** | 158.39 s |
+| **D = 2** | **5.3153%** | **0.8626** | **0.1057** | $6.37 \to 1.78$ | $-4.23 \to 8.95$ | 10.90 | 15.11 | 142.54 s |
+| **D = 4** | **12.7019%** | **0.8010** | **0.5065** | $5.33 \to 3.32$ | $-4.61 \to 32.92$ | 29.18 | 12.87 | 142.83 s |
+| **D = 8** | **19.7814%** | **0.8336** | **1.5810** | $7.21 \to 6.11$ | $-6.15 \to 68.94$ | 317.69 | 27.74 | 153.01 s |
+| **D = 16** | **37.6382%** | **0.7683** | **6.0141** | $6.62 \to 10.71$ | $-5.91 \to 160.36$ | **2685.76** | **197.81** | 158.81 s |
+| **D = 32** | **51.1976%** | **0.7702** | **16.4573** | $9.11 \to 16.55$ | $-8.03 \to 300.40$ | **12999.47** | **919.33** | 157.90 s |
 
 ---
 
@@ -115,9 +115,9 @@ The official benchmark supplies the ground-truth forward map $T^*(x)=\texttt{ben
 
 | D | Training | L2-UVP | Cosine | L2 Error | Peak $f$ parameter-gradient norm | NaN/Inf |
 |:---|:---|:---|:---|:---|:---|:---|
-| 16 | Minimax baseline | 37.76% | 0.7731 | 6.0410 | 2685.76 | False |
+| 16 | Minimax baseline | 37.64% | 0.7683 | 6.0141 | 2685.76 | False |
 | 16 | Oracle MSE | **29.14%** | **0.8249** | **4.6299** | **1.08** | False |
-| 32 | Minimax baseline | 50.80% | 0.7644 | 16.2556 | 12999.47 | False |
+| 32 | Minimax baseline | 51.20% | 0.7702 | 16.4573 | 12999.47 | False |
 | 32 | Oracle MSE | **42.59%** | **0.8083** | **13.6303** | **1.39** | False |
 
 **Finding:** Direct supervision yields finite, stable trajectories and better official transport metrics at both dimensions. The remaining oracle error means that this experiment does not clear the ICNN parameterization or clipping of all responsibility for the high-dimensional gap.

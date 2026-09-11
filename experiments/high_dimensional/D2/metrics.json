@@ -1,0 +1,16 @@
+{
+  "D": 2,
+  "L2-UVP": 5.3153300285339355,
+  "Cosine Similarity": 0.862567126750946,
+  "L2 Error": 0.10568311810493469,
+  "final_f_loss": 1.7751388549804688,
+  "final_g_loss": 8.952905654907227,
+  "f_gradient_norm": 0.9752821282261754,
+  "g_gradient_norm": 0.021335587100589568,
+  "parameter_norm": 15.877522428584662,
+  "parameter_count": 34051,
+  "training_time": 142.54304695129395,
+  "iterations_per_second": 14.030849226082472,
+  "NaN/Inf": false,
+  "completed_iterations": 2000
+}

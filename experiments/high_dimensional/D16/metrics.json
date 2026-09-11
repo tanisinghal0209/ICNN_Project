@@ -1,16 +1,16 @@
 {
   "D": 16,
-  "L2-UVP": 37.756311893463135,
-  "Cosine Similarity": 0.7731388807296753,
-  "L2 Error": 6.041009902954102,
+  "L2-UVP": 37.638214111328125,
+  "Cosine Similarity": 0.768311619758606,
+  "L2 Error": 6.014100074768066,
   "final_f_loss": 10.712417602539062,
   "final_g_loss": 160.36416625976562,
   "f_gradient_norm": 13.849351062667486,
   "g_gradient_norm": 1.5420738168230885,
   "parameter_norm": 16.002006461984735,
   "parameter_count": 39441,
-  "training_time": 140.81807017326355,
-  "iterations_per_second": 14.2027226870755,
+  "training_time": 158.80959606170654,
+  "iterations_per_second": 12.593697418781208,
   "NaN/Inf": false,
   "completed_iterations": 2000
 }

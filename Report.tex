@@ -112,11 +112,11 @@ Using official Korotin \texttt{Mix3ToMix10} benchmark checkpoints, I conducted a
 \toprule
 \textbf{Dim ($D$)} & \textbf{L2-UVP (\%)} & \textbf{Cosine Sim} & \textbf{L2 Error} & \textbf{$f$-Loss (init $\to$ final)} & \textbf{$g$-Loss (init $\to$ final)} & \textbf{$\|\nabla f\|$ (peak)} & \textbf{$\|\nabla g\|$ (peak)} & \textbf{Time (s)} \\
 \midrule
-2  & \textbf{5.32\%}  & \textbf{0.8626} & \textbf{0.1057} & $6.46 \to 1.71$  & $-4.20 \to 8.82$   & 10.80  & 14.96 & 152.8 s \\
-4  & \textbf{12.64\%} & 0.8422          & 0.5055          & $5.33 \to 3.32$  & $-4.61 \to 32.93$  & 29.18  & 12.87 & 135.4 s \\
-8  & \textbf{19.70\%} & 0.8238          & 1.5761          & $7.21 \to 6.11$  & $-6.15 \to 68.84$  & 317.69 & 27.74 & 138.6 s \\
-16 & \textbf{37.76\%} & 0.7731          & 6.0410          & $6.62 \to 10.71$ & $-5.91 \to 160.36$ & 2685.76& 197.81& 140.8 s \\
-32 & \textbf{50.80\%} & 0.7644          & 16.2556         & $9.11 \to 16.55$ & $-8.03 \to 300.40$ & 12999.47& 919.33& 158.4 s \\
+2  & \textbf{5.32\%}  & \textbf{0.8626} & \textbf{0.1057} & $6.37 \to 1.78$  & $-4.23 \to 8.95$   & 10.90  & 15.11 & 142.5 s \\
+4  & \textbf{12.70\%} & 0.8010          & 0.5065          & $5.33 \to 3.32$  & $-4.61 \to 32.92$  & 29.18  & 12.87 & 142.8 s \\
+8  & \textbf{19.78\%} & 0.8336          & 1.5810          & $7.21 \to 6.11$  & $-6.15 \to 68.94$  & 317.69 & 27.74 & 153.0 s \\
+16 & \textbf{37.64\%} & 0.7683          & 6.0141          & $6.62 \to 10.71$ & $-5.91 \to 160.36$ & 2685.76& 197.81& 158.8 s \\
+32 & \textbf{51.20\%} & 0.7702          & 16.4573         & $9.11 \to 16.55$ & $-8.03 \to 300.40$ & 12999.47& 919.33& 157.9 s \\
 \bottomrule
 \end{tabular}%
 }
@@ -178,9 +178,9 @@ The official benchmark provides the forward map $T^*(x)=\texttt{benchmark.map\_f
 \toprule
 \textbf{$D$} & \textbf{Training} & \textbf{L2-UVP (\%)} & \textbf{Cosine} & \textbf{L2 Error} & \textbf{Peak $f$-grad} & \textbf{NaN/Inf} \\
 \midrule
-16 & Minimax baseline & 37.76 & 0.7731 & 6.0410 & 2685.76 & False \\
+16 & Minimax baseline & 37.64 & 0.7683 & 6.0141 & 2685.76 & False \\
 16 & Oracle MSE       & \textbf{29.14} & \textbf{0.8249} & \textbf{4.6299} & \textbf{1.08} & False \\
-32 & Minimax baseline & 50.80 & 0.7644 & 16.2556 & 12999.47 & False \\
+32 & Minimax baseline & 51.20 & 0.7702 & 16.4573 & 12999.47 & False \\
 32 & Oracle MSE       & \textbf{42.59} & \textbf{0.8083} & \textbf{13.6303} & \textbf{1.39} & False \\
 \bottomrule
 \end{tabular}
@@ -218,8 +218,8 @@ All settings are fixed to the corresponding baseline except the Adam learning ra
 The quantitative trajectory telemetry allows us to evaluate the high-dimensional degradation mechanisms:
 
 \begin{enumerate}
-    \item \textbf{Transient Gradient Norm Spikes}: Peak parameter-gradient norms for player $f$ increase rapidly with dimension---from $10.80$ at $D=2$ to $2,685.76$ at $D=16$ and $12,999.47$ at $D=32$. The $g$-player gradient norm is separately measured on the final inner $g$ update of each outer iteration.
-    \item \textbf{Growth of the $g$-Player Objective}: The raw $g$-player objective grows from $8.82$ in 2D to $300.40$ in 32D, consistent with an increasingly difficult inner maximization. This quantity is not interpreted as a duality gap.
+    \item \textbf{Transient Gradient Norm Spikes}: Peak parameter-gradient norms for player $f$ increase rapidly with dimension---from $10.90$ at $D=2$ to $2,685.76$ at $D=16$ and $12,999.47$ at $D=32$. The $g$-player gradient norm is separately measured on the final inner $g$ update of each outer iteration.
+    \item \textbf{Growth of the $g$-Player Objective}: The raw $g$-player objective grows from $8.95$ in 2D to $300.40$ in 32D, consistent with an increasingly difficult inner maximization. This quantity is not interpreted as a duality gap.
     \item \textbf{Outer Loss Trajectory Divergence}: At $D=16$ and $D=32$, $f$-loss increases during optimization ($6.62 \to 10.71$ in 16D; $9.11 \to 16.55$ in 32D, an 82\% increase). The solver moves away from initial potential configurations.
     \item \textbf{Stability versus Accuracy}: Oracle regression removes the large spikes and improves transport metrics, while slow-$g$ minimax updates suppress spikes by up to 97.5\% at D=32. Yet the most stable D=32 slow-$g$ run has the worst L2-UVP. Gradient stabilization is therefore not by itself sufficient to recover high-dimensional accuracy.
 \end{enumerate}
